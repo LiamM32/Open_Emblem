@@ -5,13 +5,15 @@ import std.stdio;
 import tile;
 
 class Map {
-    private Tile[uint][uint] grid;
+    private Tile[][] grid;
     private ushort gridWidth;
     private ushort gridLength;
 
     this(ushort width, ushort length) {
-        foreach (x; 0 .. width) {
-            foreach (y; 0 .. length) {
+        this.grid.length = width;
+        foreach (x; 0 .. width-1) {
+            this.grid[x].length = length;
+            foreach (y; 0 .. length-1) {
                 this.grid[x][y] = new Tile();
             }
         }
