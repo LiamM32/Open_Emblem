@@ -4,6 +4,7 @@ import std.stdio;
 import std.conv;
 
 import map;
+import item;
 
 class Unit {
     private Map map;
@@ -15,18 +16,28 @@ class Unit {
     private string name;
     private uint Mv;
     private bool isFlyer = false;
+    public uint MHP;
+    public uint Str;
+    public uint Def;
+    public uint Exp;
     
-    private TileAccess[][] distances;
+    /*public Item[5] inventory;
+    public ubyte currentWeapon;*/
+    public Weapon currentWeapon;
+    private TileAccess[int][int] distances;
+    public int HP;
 
     this(string name, Map map, short Mv) {
         this.map = map;
-        this.distances.length = map.getWidth;
+        //this.distances.length = map.getWidth;
         foreach(ref row; this.distances) {
-            row.length = map.getLength;
+            //row.length = map.getLength;
         }
         
         this.name = name;
         this.Mv = Mv;
+
+        this.HP = this.MHP;
     }
     
     void setLocation(int x, int y) {
@@ -49,11 +60,19 @@ class Unit {
         
         writeln(this.distances);
     }
+
+    bool attack (uint x, uint y) {
+        if (distances[x][y].distance > this.currentWeapon.range) return false;
+
+        Unit opponent = this.map.getTile(x, y).occupant;
+        opponent.HP -= (this.Str * this.Str)/(this.Str + opponent.Def);
+
+        return true;
+    }
     
     private void updateDistances(uint distancePassed, int x, int y) {
         if ((x < 0) || (y < 0) || (x > this.map.getWidth) || (y > this.map.getLength)) return;
         if (!this.map.getTile(x, y).allowUnit(this.isFlyer)) return;
-        writeln("Made it here");
         if (this.distances[x][y].measured && this.distances[x][y].distance <= distancePassed) return;
         else if (this.distances[x][y].distance <= this.Mv) this.distances[x][y].reachable = true;
         
@@ -76,6 +95,25 @@ class Unit {
             }
         }
     }
+
+    /*Stats getStats() {
+        Stats stats = new Stats();
+        stats.Mv = this.Mv;
+        stats.isFlyer = this.isFlyer;
+        stats.MHP = this.MHP;
+        stats.Str = this.Str;
+        stats.Def = this.Def;
+
+        return stats;
+    }
+
+    struct Stats {
+        uint Mv;
+        bool isFlyer = false;
+        uint MHP;
+        uint Str;
+        uint Def;
+    }*/
 }
 
 struct TileAccess

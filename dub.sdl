@@ -1,0 +1,7 @@
+name "open_emblem"
+description "A platform for a tactical role-playing game, written in D."
+authors "Liam McGillivray"
+copyright "Copyright © 2024, Liam McGillivray"
+license "LGPL-3.0-only"
+
+targetType "sourceLibrary"
