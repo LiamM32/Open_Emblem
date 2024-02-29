@@ -9,7 +9,7 @@ class Map {
     private Tile[][] grid;
     private ushort gridWidth;
     private ushort gridLength;
-    private string[ushort] textureIndex;
+    private string[] textureIndex;
 
     this(ushort width, ushort length) {
         this.grid.length = width;
@@ -24,6 +24,7 @@ class Map {
     }
 
     this(JSONValue mapData) {
+        import std.algorithm;
         
         JSONValue[][] tileData;
         tileData.length = mapData.object["tiles"].array.length;
@@ -33,11 +34,20 @@ class Map {
             this.grid[x].length = tileRow.array.length;
 
             foreach (y, tile; tileRow.arrayNoRef) {
+                string tileName = "";
+                if ("name" in tile) tileName = tile["name"].get!string;
                 bool allowStand = tile["canWalk"].get!bool;
                 bool allowFly = true;// tile["canFly"].get!bool;
                 int stickiness = tile["stickiness"].get!int;
                 string textureName = tile["tile_sprite"].get!string;
-                this.grid[x][y] = new Tile(allowStand, allowFly, stickiness, textureName);
+                ushort textureID = this.findAssignTextureID(textureName);
+                /*if (this.textureIndex.canFind(textureName)) {
+                    textureID = countUntil(this.textureIndex, textureName);
+                } else {
+                    textureID = this.textureIndex.length;
+                    this.textureIndex ~= textureName;
+                }*/
+                this.grid[x][y] = new Tile(tileName, allowStand, allowFly, stickiness, textureID, textureName);
             }
         }
         //writeln(mapData);
@@ -45,6 +55,10 @@ class Map {
     
     Tile* getTile(int x, int y) {
         return &this.grid[x][y];
+    }
+
+    Tile[][] getGrid() {
+        return this.grid;
     }
     
     ushort getWidth() {
@@ -54,7 +68,40 @@ class Map {
         return cast(ushort)this.grid[0].length;
     }
 
-    string[ushort] getTextureIndex() {
+    string[] getTextureIndex() {
         return this.textureIndex;
     }
+
+    ushort findAssignTextureID (string textureName) {
+        import std.conv;
+        ushort i;
+        for (i=0; i<this.textureIndex.length; i++) {
+            if (textureIndex[i] == textureName) return i;
+        }
+        this.textureIndex ~= textureName;
+        return cast(ushort)(this.textureIndex.length - 1);
+    }
+}
+
+ushort findAssignTextureID (string[] textureIndex, string textureName) {
+    import std.conv;
+    ushort i;
+    for (i=0; i<textureIndex.length; i++) {
+        if (textureIndex[i] == textureName) return i;
+    }
+    textureIndex ~= textureName;
+    writeln("i = " ~ to!string(i));
+    writeln("textureIndex.length = " ~ to!string(textureIndex.length-1));
+    writeln(textureIndex);
+    return cast(ushort)(textureIndex.length - 1);
+}
+
+unittest
+{
+    Map map = new Map(cast(ushort)8, cast(ushort)8);
+    assert(map.findAssignTextureID("grass") == 0);
+    assert(map.findAssignTextureID("water") == 1);
+    assert(map.findAssignTextureID("sand") == 2);
+    assert(map.findAssignTextureID("grass") == 0);
+    assert(findAssignTextureID(map.textureIndex, "stone") == 3);
 }

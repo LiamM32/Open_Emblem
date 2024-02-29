@@ -4,18 +4,19 @@ import unit;
 
 class Tile
 {
+	public string tileName;
 	private bool allowStand = true;
 	private bool allowFly = true;
 	public int stickyness = 0;
 
 	public string textureName;
-	public ushort spriteID;
+	public ushort textureID;
 	
 	public Unit occupant;
 
 	this() {}
 	
-	this(bool allowStand, bool allowFly, int stickyness, string textureName = "") {
+	this(string tileName, bool allowStand, bool allowFly, int stickyness, ushort textureID, string textureName = "") {
 		this.allowStand = allowStand;
 		this.allowFly = allowFly;
 		this.stickyness = stickyness;

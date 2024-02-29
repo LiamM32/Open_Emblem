@@ -39,6 +39,16 @@ class Unit {
 
         this.HP = this.MHP;
     }
+
+    this(string name, Map map, unitStats stats) {
+        this.map = map;
+        this.name = name;
+        this.Mv = stats.Mv;
+        this.MHP = this.MHP;
+        this.isFlyer = stats.isFlyer;
+        this.Str = stats.Str;
+        this.Def = stats.Def;
+    }
     
     void setLocation(int x, int y) {
         this.xlocation = x;
@@ -96,8 +106,8 @@ class Unit {
         }
     }
 
-    /*Stats getStats() {
-        Stats stats = new Stats();
+    unitStats getStats() {
+        unitStats stats;
         stats.Mv = this.Mv;
         stats.isFlyer = this.isFlyer;
         stats.MHP = this.MHP;
@@ -107,7 +117,7 @@ class Unit {
         return stats;
     }
 
-    struct Stats {
+    /*struct unitStats {
         uint Mv;
         bool isFlyer = false;
         uint MHP;
@@ -121,4 +131,24 @@ struct TileAccess
     uint distance;
     bool reachable = false;
     bool measured = false;
+}
+
+struct unitStats {
+    uint Mv;
+    bool isFlyer = false;
+    uint MHP;
+    uint Str;
+    uint Def;
+}
+
+unittest //Currently incomplete
+{
+    Map map = new Map(cast(ushort)8, cast(ushort)8);
+    unitStats stats;
+    stats.Str = 24;
+    stats.Def = 12;
+    
+    Unit ally = new Unit("Ally", map, stats);
+    Unit enemy = new Unit("Enemy", map, stats);
+
 }
