@@ -2,6 +2,7 @@ module unit;
 
 import std.stdio;
 import std.conv;
+import std.json;
 
 import map;
 import item;
@@ -10,6 +11,8 @@ class Unit {
     private Map map;
     private int xlocation;
     private int ylocation;
+    public string faction;
+    public uint spriteID;
     
     static ubyte lookahead = 1;
     
@@ -48,6 +51,26 @@ class Unit {
         this.isFlyer = stats.isFlyer;
         this.Str = stats.Str;
         this.Def = stats.Def;
+    }
+
+    this(Map map, JSONValue unitData) {
+        this.map = map;
+        this(unitData);
+    }
+
+    this(Map map, JSONValue unitData, int textureID) {
+        this.map = map;
+        this(unitData);
+    }
+
+    this(JSONValue unitData) {
+        import std.algorithm.searching;
+        this.name = unitData.object["Name"].get!string;
+        this.isFlyer = unitData.object["Movement type"].get!string.canFind("fly");
+        this.Mv = unitData.object["Mv"].get!uint;
+        this.MHP = unitData.object["MHP"].get!uint;
+        this.Str = unitData.object["Str"].get!uint;
+        this.Def = unitData.object["Def"].get!uint;
     }
     
     void setLocation(int x, int y) {

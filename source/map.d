@@ -6,11 +6,16 @@ import std.json;
 import tile;
 
 class Map {
-    private Tile[][] grid;
-    private ushort gridWidth;
-    private ushort gridLength;
-    private string[] textureIndex;
+    public string name;
+    protected Tile[][] grid;
+    protected ushort gridWidth;
+    protected ushort gridLength;
+    protected string[] textureIndex;
 
+    this(string name) {
+        this.name = name;
+    }
+    
     this(ushort width, ushort length) {
         this.grid.length = width;
         foreach (x; 0 .. width-1) {
@@ -48,6 +53,8 @@ class Map {
                     this.textureIndex ~= textureName;
                 }*/
                 this.grid[x][y] = new Tile(tileName, allowStand, allowFly, stickiness, textureID, textureName);
+                //this.loadJSONTileData(tile);
+                //if ("Unit" in tile) this.loadUnitFromJSON(tile["Unit"].object);
             }
         }
         //writeln(mapData);
@@ -81,6 +88,9 @@ class Map {
         this.textureIndex ~= textureName;
         return cast(ushort)(this.textureIndex.length - 1);
     }
+
+    /*Unit*///void loadUnitFromJSON (JSONValue UnitData);
+    //void loadJSONTileData (JSONValue TileData);
 }
 
 ushort findAssignTextureID (string[] textureIndex, string textureName) {
