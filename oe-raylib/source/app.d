@@ -12,10 +12,10 @@ const int screenHeight = 600;
 void main()
 {
 	validateRaylibBinding();
-	//InitWindow(800, 600, "Open Emblem");
-	//SetTargetFPS(60);
+	InitWindow(800, 600, "Open Emblem");
+	SetTargetFPS(60);
 
-    //scope(exit) CloseWindow();
+    scope(exit) CloseWindow();
 
     Mission mission = new Mission("../maps/Test_battlefield.json");
     writeln("Mission constructor finished.");

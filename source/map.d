@@ -4,6 +4,7 @@ import std.stdio;
 import std.json;
 
 import tile;
+import unit;
 
 class Map {
     public string name;
@@ -11,6 +12,9 @@ class Map {
     protected ushort gridWidth;
     protected ushort gridLength;
     protected string[] textureIndex;
+    public bool fullyLoaded = false;
+
+    public Unit[] allUnits;
 
     this(string name) {
         this.name = name;
@@ -26,6 +30,7 @@ class Map {
         }
     this.gridWidth = width;
     this.gridLength = length;
+    this.fullyLoaded = true;
     }
 
     this(JSONValue mapData) {
@@ -46,18 +51,21 @@ class Map {
                 int stickiness = tile["stickiness"].get!int;
                 string textureName = tile["tile_sprite"].get!string;
                 ushort textureID = this.findAssignTextureID(textureName);
-                /*if (this.textureIndex.canFind(textureName)) {
-                    textureID = countUntil(this.textureIndex, textureName);
-                } else {
-                    textureID = this.textureIndex.length;
-                    this.textureIndex ~= textureName;
-                }*/
                 this.grid[x][y] = new Tile(tileName, allowStand, allowFly, stickiness, textureID, textureName);
-                //this.loadJSONTileData(tile);
-                //if ("Unit" in tile) this.loadUnitFromJSON(tile["Unit"].object);
             }
         }
-        //writeln(mapData);
+        this.fullyLoaded = true;
+    }
+
+    ~this() {
+        foreach (unit; this.allUnits) {
+            destroy(unit);
+        }
+        foreach (tileRow; this.grid) {
+            foreach (tile; tileRow) {
+                destroy(tile);
+            }
+        }
     }
     
     Tile* getTile(int x, int y) {
@@ -114,4 +122,13 @@ unittest
     assert(map.findAssignTextureID("sand") == 2);
     assert(map.findAssignTextureID("grass") == 0);
     assert(findAssignTextureID(map.textureIndex, "stone") == 3);
+}
+
+unittest
+{
+    import std.algorithm.searching;
+    Map map = new Map(cast(ushort)16, cast(ushort)16);
+    UnitStats unitStats = {Mv:6, Str:24, Def:16, MHP:90};
+    Unit unit = new Unit("Soldier", map, unitStats);
+    assert (canFind(map.allUnits, unit));
 }
