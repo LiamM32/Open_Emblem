@@ -9,8 +9,8 @@ import item;
 
 class Unit {
     public Map map;
-    private int xlocation;
-    private int ylocation;
+    public int xlocation;
+    public int ylocation;
     public string faction;
     public uint spriteID;
     
@@ -27,6 +27,7 @@ class Unit {
     public Item[5]* inventory;
     public Weapon* currentWeapon;
     private TileAccess[][] distances;
+    private uint MvRemaining;
     public int HP;
 
     this(string name, Map map, UnitStats stats, uint xlocation, uint ylocation) {
@@ -51,6 +52,7 @@ class Unit {
         this.setDistanceArraySize;
         this.name = name;
         this.Mv = stats.Mv;
+        this.MvRemaining = this.Mv;
         this.MHP = this.MHP;
         this.isFlyer = stats.isFlyer;
         this.Str = stats.Str;
@@ -89,6 +91,7 @@ class Unit {
         if ("Movement type" in unitData.object) this.isFlyer = unitData.object["Movement type"].get!string.canFind("fly");
         else this.isFlyer = false;
         this.Mv = unitData.object["Mv"].get!uint;
+        this.MvRemaining = this.Mv;
         this.MHP = unitData.object["MHP"].get!uint;
         this.Str = unitData.object["Str"].get!uint;
         this.Def = unitData.object["Def"].get!uint;
@@ -99,8 +102,13 @@ class Unit {
 
         }
     }*/
+
+    void turnReset() {
+        this.MvRemaining = this.Mv;
+        updateDistances();
+    }
     
-    void setLocation(int x, int y, bool runUpdateDistances = true) { //runUpdateDistances should be false if the map isn't fully loaded.
+    void setLocation(int x, int y, bool runUpdateDistances = true) { //runUpdateDistances should be removed due to map.fullyLoaded being used instead. However, removing it causes a segfault.
         this.xlocation = x;
         this.ylocation = y;
         
@@ -123,7 +131,7 @@ class Unit {
         return true;
     }
 
-    public void updateDistances(uint distancePassed) {
+    public void updateDistances(uint distancePassed = 0) {
         
         foreach(int x, row; this.map.getGrid()) {
             foreach(int y, mapTile; row) {
@@ -134,6 +142,7 @@ class Unit {
         }
 
         updateDistances(distancePassed, this.xlocation, this.ylocation);
+        writeln("Finished updating distances for unit "~this.name);
     }
     
     private bool updateDistances(uint distancePassed, int x, int y) {
@@ -174,6 +183,10 @@ class Unit {
         foreach(ref row; this.distances) row.length = this.map.getLength;
     }
 
+    TileAccess getDistance(int x, int y) {
+        return this.distances[x][y];
+    }
+
     UnitStats getStats() {
         UnitStats stats;
         stats.Mv = this.Mv;
@@ -192,6 +205,7 @@ struct TileAccess
     bool reachable = false;
     bool measured = false;
 }
+
 
 struct UnitStats {
     uint Mv;

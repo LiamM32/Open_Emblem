@@ -15,6 +15,7 @@ class Map {
     public bool fullyLoaded = false;
 
     public Unit[] allUnits;
+    public Unit[][string] factionUnits;
 
     this(string name) {
         this.name = name;
@@ -67,6 +68,18 @@ class Map {
             }
         }
     }
+
+    void turnReset() {
+        foreach(unit; this.allUnits) {
+            unit.turnReset;
+        }
+    }
+
+    void turnReset(string faction) {
+        foreach(unit; this.factionUnits[faction]) {
+            unit.turnReset;
+        }
+    }
     
     Tile* getTile(int x, int y) {
         return &this.grid[x][y];
@@ -74,6 +87,10 @@ class Map {
 
     Tile[][] getGrid() {
         return this.grid;
+    }
+
+    Unit* getOccupant(int x, int y) {
+        return this.grid[x][y].occupant;
     }
     
     ushort getWidth() {

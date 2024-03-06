@@ -18,6 +18,8 @@ class Mission : Map
     Texture2D[] sprites;
     Unit[] playerUnits;
     Unit* selectedUnit;
+    bool playerTurn;
+    Rectangle[][] gridRects;
 
     this() {
         JSONValue missionData = parseJSON(readText("../maps/Test_battlefield.json"));
@@ -37,15 +39,15 @@ class Mission : Map
             int[string] spriteIndex;
             super(mapData["map_name"].get!string);
 
-            Unit[] npcUnits;
             JSONValue[][] tilesData;
             tilesData.length = mapData.object["tiles"].array.length;
             this.grid.length = mapData.object["tiles"].array.length;
+            this.gridRects.length = mapData.object["tiles"].array.length;
             writeln("Starting to unload tile data");
             foreach (int x, tileRow; mapData.object["tiles"].array) {
                 tilesData[x] = tileRow.arrayNoRef;
                 this.grid[x].length = tileRow.array.length;
-                //npcUnitsData[x].length = tileRow.length;
+                //this.gridRects[x].length = tileRow.array.length;
 
                 foreach (int y, tile; tileRow.arrayNoRef) {
                     string tileName = "";
@@ -63,6 +65,8 @@ class Mission : Map
                         Unit occupyingUnit = this.loadUnitFromJSON(tile["Unit"], spriteIndex);
                         occupyingUnit.setLocation(x, y);
                     }
+                    Rectangle tileRectangle = {x:x*TILESIZE, y:y*TILESIZE, width:TILESIZE, height:TILESIZE};
+                    this.gridRects[x] ~= tileRectangle;
                 }
                 write("Finished loading row ");
                 writeln(x);
@@ -82,6 +86,8 @@ class Mission : Map
             writeln("Finished loading player units");
         }
         this.fullyLoaded = true;
+        this.playerTurn = true;
+        this.turnReset();
     
         scope(exit) CloseWindow();
 
@@ -113,6 +119,20 @@ class Mission : Map
             foreach (int gridx, tileRow; this.grid) {
                 foreach (int gridy, tile; tileRow) {
                     DrawTexture(this.sprites[tile.textureID], gridx*TILESIZE, gridy*TILESIZE, Colors.WHITE);
+                    if (this.playerTurn && CheckCollisionPointRec(GetMousePosition(), this.gridRects[gridx][gridy])) {
+                        if (tile.occupant !is null) {
+                            if (IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) {
+                                this.selectedUnit = tile.occupant;
+                                this.selectedUnit.updateDistances();
+                            }
+                            if (this.selectedUnit !is null) {
+                                if (this.selectedUnit.getDistance(gridx, gridy).reachable) {
+                                    DrawRectangleRec(this.gridRects[gridx][gridy], Color(100, 100, 245, 32));
+                                }
+                            }
+                        }
+                        DrawRectangleRec(this.gridRects[gridx][gridy], Color(245, 245, 245, 32));
+                    }
                     //DrawRectangleLines(gridx*TILESIZE, gridy*TILESIZE, TILESIZE, TILESIZE, SHADOW);
                     DrawTextureEx(gridMarker, Vector2(gridx*TILESIZE, gridy*TILESIZE), 0.0, 1.0, Color(10,10,10, markerOpacity));
                 }
