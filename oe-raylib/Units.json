@@ -1,0 +1,11 @@
+[
+    {
+        "Name": "Pawn",
+        "Sprite": "character",
+        "Movement type": "walk",
+        "Mv": 7,
+        "MHP": 100,
+        "Str": 24,
+        "Def": 16
+    }
+]
