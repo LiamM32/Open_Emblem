@@ -5,3 +5,11 @@ copyright "Copyright © 2024, Liam McGillivray"
 license "GPL-3.0-or-later"
 
 targetType "sourceLibrary"
+
+excludedSourceFiles "source/loadData.d"
+
+subPackage {
+    name "loadData"
+    targetType "sourceLibrary"
+    dependency "open_emblem" version="*" path="."
+}
