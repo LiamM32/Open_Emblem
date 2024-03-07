@@ -6,8 +6,8 @@ import raylib;
 
 import mission;
 
-const int screenWidth = 600;
-const int screenHeight = 600;
+const int screenWidth = 768;
+const int screenHeight = 768;
 
 void main()
 {

@@ -29,7 +29,7 @@ class Mission : Map
     Vector2i mapSizePx;
 
     this() {
-        JSONValue missionData = parseJSON(readText("../maps/test-map.json"));
+        JSONValue missionData = parseJSON(readText("../maps/Test_battlefield.json"));
         this(missionData);
     }
 
@@ -89,14 +89,14 @@ class Mission : Map
         {
             Rectangle unitSelectionBox = {x:0, y:GetScreenHeight()-96, width:GetScreenWidth(), height:96};
             Unit[] availableUnits;
-            UnitCard[Unit*] unitCards;
+            UnitCard[Unit] unitCards;
             
             JSONValue playerUnitsData = parseJSON(readText("Units.json"));
             writeln("Opened Units.json");
             foreach (int k, unitData; playerUnitsData.array) {
                 Unit unit = loadUnitFromJSON(unitData, spriteIndex, false);
                 availableUnits ~= unit;
-                unitCards[&unit] = new UnitCard(unit, k*258, GetScreenHeight()-72);
+                unitCards[unit] = new UnitCard(unit, k*258, GetScreenHeight()-88);
             }
             writeln("There are "~to!string(unitCards.length)~" units available.");
             
@@ -113,10 +113,14 @@ class Mission : Map
                 drawTiles();
                 drawUnits();
                 foreach(startTile; startingPoints) {
-                    DrawRectangleRec(startTile.getRect, Color(250, 250, 60, 30));
+                    DrawRectangleRec(startTile.getRect, Color(250, 250, 60, 60));
+                    DrawRectangleLinesEx(startTile.getRect, 1.5f, Color(240, 240, 40, 120));
                     if (startTile.occupant !is null) {
                         Vector2 destination = vect2sum(startTile.getOriginSS, Vector2(0, -24));
-                        DrawTextureV(this.sprites[startTile.occupant.spriteID], destination, Colors.WHITE);
+                        DrawTextureV(this.sprites[startTile.tile.occupant.spriteID], destination, Colors.WHITE);
+                    }
+                    if (CheckCollisionPointRec(mousePosition, startTile.getRect)) {
+                        DrawRectangleRec(startTile.getRect, Color(250, 30, 30, 60));
                     }
                 }
 
@@ -126,35 +130,54 @@ class Mission : Map
                 }
 
                 if (IsKeyDown(KeyboardKey.KEY_SPACE)) {
-                    DrawRectangleRec(mapView, Colours.SHINE);
+                    DrawRectangleRec(mapView, Color(250, 20, 20, 50));
                 }
 
                 mousePosition = GetMousePosition();
                 if (this.selectedUnit is null) {
                     if (IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) {
+                        bool searching = true;
                         foreach (card; unitCards) if (CheckCollisionPointRec(mousePosition, card.outerRect)) {
-                            this.selectedUnit = &card.unit;
-                            card.available = false;
+                            searching = false;
+                            if (card.available) {
+                                this.selectedUnit = &card.unit;
+                                card.available = false;
+                                break;
+                            }
+                        }
+                        if (searching) foreach (startTile; startingPoints) if (CheckCollisionPointRec(mousePosition, startTile.getRect)) {
+                            this.selectedUnit = startTile.tile.occupant;
                         }
                     }
                 } else {
                     DrawTextureV(this.sprites[this.selectedUnit.spriteID], vect2sum(mousePosition, dragOffset), Colors.WHITE);
                     if (IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) {
-                        bool drop = true;
+                        bool deployed = (this.selectedUnit.currentTile !is null);
                         foreach (gridTile; startingPoints) if (CheckCollisionPointRec(mousePosition, gridTile.getRect)) {
+                            Unit* previousOccupant = gridTile.tile.occupant;
                             if (gridTile.occupant !is null) {
-                                gridTile.tile.occupant = this.selectedUnit;
-                                drop = false;
-                                break;
+                                unitCards[*previousOccupant].available = true;
                             }
+                            if (this.selectedUnit.currentTile !is null) this.selectedUnit.currentTile.occupant = null;
+                            gridTile.tile.occupant = this.selectedUnit;
+                            this.selectedUnit.currentTile = &gridTile.tile;
+                            unitCards[*selectedUnit].available = false;
+                            deployed = true;
+                            writeln("Unit "~gridTile.tile.occupant.name~" is being deployed.");
+                            if (previousOccupant !is null) previousOccupant.currentTile = null;
+                            this.selectedUnit = previousOccupant;
+                            break;
                         }
-                        /*if (drop) {
-                            unitCards[selectedUnit].available = true;
+                        if (!deployed) {
+                            unitCards[*selectedUnit].available = true;
+                            if (this.selectedUnit.currentTile !is null) {
+                                this.selectedUnit.currentTile.occupant = null;
+                                this.selectedUnit.currentTile = null;
+                            }
+                            this.selectedUnit = null;
                         }
-                        this.selectedUnit = null;*/
                     }
                 } 
-
                 EndDrawing();
             }
         }
@@ -354,16 +377,22 @@ class Mission : Map
         int height;
         Unit unit;
         bool available = true;
+        string infotext;
 
         this (Unit unit, int screenx, int screeny ) {
-            this.outerRect = Rectangle(screenx, screeny, 256, 72);
+            this.outerRect = Rectangle(screenx, screeny, 192, 80);
             this.imageFrame = Rectangle(screenx+4, screeny+4, 64, 64);
             this.unit = unit;
-
             this.x = screenx;
             this.y = screeny;
             this.width = 256;
             this.height = 72;
+
+            UnitStats stats = unit.getStats;
+            this.infotext ~= "Mv: "~to!string(stats.Mv)~"\n";
+            this.infotext ~= "MHP: "~to!string(stats.MHP)~"\n";
+            this.infotext ~= "Str: "~to!string(stats.Str)~"\n";
+            this.infotext ~= "Def: "~to!string(stats.Def)~"\n";
         }
 
         UnitStats stats() {
@@ -373,8 +402,9 @@ class Mission : Map
         void draw() {
             DrawRectangleRec(outerRect, Color(r:250, b:230, g:245, a:200));
             DrawRectangleLinesEx(outerRect, 1.0f, Colors.BLACK);
-            DrawTexture(this.outer.sprites[this.unit.spriteID], cast(int)outerRect.x+4, cast(int)outerRect.y+4, Colors.WHITE);
-            //DrawTexture(this.outer.sprites[this.unit.spriteID], this.width+4, this.height+4, Colors.WHITE);
+            DrawTexture(this.outer.sprites[this.unit.spriteID], cast(int)outerRect.x+4, cast(int)outerRect.y+2, Colors.WHITE);
+            DrawText(this.unit.name.toStringz, x+80, y+4, 14, Colors.BLACK);
+            DrawText(this.infotext.toStringz, x+80, y+20, 11, Colors.BLACK);
         }
     }
 }
@@ -395,5 +425,5 @@ ushort loadNumberTexture (string spriteName, ref int[string] spriteIndex, ref Te
 enum Colours {
     SHADOW = Color(r:20, b:20, g:20, a:25),
     PAPER = Color(r:240, b:210, g:234, a:250),
-    SHINE = Color(250, 250, 60, 30),
+    SHINE = Color(250, 250, 60, 35),
 }

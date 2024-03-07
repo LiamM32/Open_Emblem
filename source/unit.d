@@ -5,12 +5,14 @@ import std.conv;
 import std.json;
 
 import map;
+import tile;
 import item;
 
 class Unit {
     public Map map;
     public int xlocation;
     public int ylocation;
+    public Tile* currentTile;
     public string faction;
     public uint spriteID;
     
@@ -108,9 +110,23 @@ class Unit {
         updateDistances();
     }
     
+    void setLocation(Tile* tilePtr, bool runUpdateDistances) {
+        this.currentTile = tilePtr;
+        tilePtr.setOccupant(this);
+        foreach (int x, row; this.map.getGrid) {
+            foreach (int y, someTile; row) if (someTile == *tilePtr) {
+                this.xlocation = x;
+                this.ylocation = y;
+                break;
+            }
+        }
+        if (runUpdateDistances) this.updateDistances(0);
+    }
+    
     void setLocation(int x, int y, bool runUpdateDistances = true) { //runUpdateDistances should be removed due to map.fullyLoaded being used instead. However, removing it causes a segfault.
         this.xlocation = x;
         this.ylocation = y;
+        this.currentTile = &this.map.getGrid[x][y];
         
         writeln(this.name ~ " location is now " ~ to!string(x) ~ ", " ~ to!string(y));
         
