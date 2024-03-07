@@ -18,8 +18,21 @@
 	[
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true,
-			"Unit": { "Name": "Terrible", "Sprite": "enemy", "Mv": 7, "MHP": 95, "Str": 24, "Def": 18}
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true }
+	],
+	[
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true, 
+		"Unit": {"Name": "Enemy", "Mv": 7, "MHP": 60, "Str": 25, "Def": 12, "Sprite": "enemy.png" }
 		},
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
@@ -29,6 +42,39 @@
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true,
+			"Player Unit": ["foot", "cavalry"],
+		},
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true }
+	],
+	[
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true }
+	],
+	[
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true,
+			"Player Unit": ["foot", "cavalry"],
+		},
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true }
 	],
 	[
@@ -70,7 +116,9 @@
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true,
+			"Player Unit": ["foot", "cavalry"],
+		},
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true }
 	],
 	[
@@ -98,49 +146,9 @@
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true }
-	],
-	[
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true }
-	],
-	[
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true }
-	],
-	[
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
-		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
+		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true,
+			"Player Unit": ["foot", "cavalry"],
+		},
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true }
 	],
 	[

@@ -9,6 +9,8 @@ class Tile
 	private bool allowFly = true;
 	public int stickyness = 0;
 
+	public bool startLocation = false;
+
 	public string textureName;
 	public ushort textureID;
 	

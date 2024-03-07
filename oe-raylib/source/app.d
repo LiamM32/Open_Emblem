@@ -6,8 +6,8 @@ import raylib;
 
 import mission;
 
-const int screenWidth = 768;
-const int screenHeight = 768;
+const int screenWidth = 600;
+const int screenHeight = 600;
 
 void main()
 {
@@ -17,7 +17,7 @@ void main()
 
     scope(exit) CloseWindow();
 
-    Mission mission = new Mission("../maps/Test_battlefield.json");
+    Mission mission = new Mission("../maps/test-map.json");
     writeln("Mission constructor finished.");
     CloseWindow();
 }

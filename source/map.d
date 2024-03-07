@@ -6,9 +6,14 @@ import std.json;
 import tile;
 import unit;
 
+//import customtypes;
+
+alias TileType = Tile;
+
 class Map {
     public string name;
-    protected Tile[][] grid;
+    
+    protected TileType[][] grid;
     protected ushort gridWidth;
     protected ushort gridLength;
     protected string[] textureIndex;
