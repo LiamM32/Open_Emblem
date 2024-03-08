@@ -4,8 +4,35 @@
         "Sprite": "character",
         "Movement type": "walk",
         "Mv": 7,
-        "MHP": 100,
+        "MHP": 80,
         "Str": 24,
-        "Def": 16
-    }
+        "Def": 16,
+        "Weapon": {
+            "name": "dagger",
+            "type": "knife",
+            "range": 2,
+            "volume": 2,
+            "atk": 9,
+            "mass": 2,
+            "RH": 15
+        }
+    },
+    {
+        "Name": "Archer",
+        "Sprite": "character",
+        "Movement type": "walk",
+        "Mv": 6,
+        "MHP": 75,
+        "Str": 21,
+        "Def": 14,
+        "Weapon": {
+            "name": "longbow",
+            "type": "bow",
+            "range": 8,
+            "volume": 3,
+            "atk": 7,
+            "mass": 1,
+            "RH": 11
+        }
+    },
 ]

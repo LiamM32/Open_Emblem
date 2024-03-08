@@ -12,6 +12,7 @@ class Unit {
     public Map map;
     public int xlocation;
     public int ylocation;
+    public Direction direction;
     public Tile* currentTile;
     public string faction;
     public uint spriteID;
@@ -97,6 +98,12 @@ class Unit {
         this.MHP = unitData.object["MHP"].get!uint;
         this.Str = unitData.object["Str"].get!uint;
         this.Def = unitData.object["Def"].get!uint;
+
+        if ("Weapon" in unitData.object) {
+            Weapon weapon = new Weapon(unitData.object["Weapon"]);
+            this.currentWeapon = &weapon;
+            //this.inventory[0] = &weapon;
+        }
     }
 
     /*~this() {
@@ -229,6 +236,17 @@ struct UnitStats {
     uint MHP;
     uint Str;
     uint Def;
+}
+
+enum Direction : ubyte {
+    N = 0,
+    NE = 2,
+    E = 4,
+    SE = 6,
+    S = 8,
+    SW = 10,
+    W = 12,
+    NW = 14,
 }
 
 unittest //Currently incomplete test of attack damage

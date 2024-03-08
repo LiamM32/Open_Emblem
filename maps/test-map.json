@@ -1,5 +1,7 @@
 {
 	"map_name": "Test Battlefield",
+	"factions": ["enemy"],
+	"first turn": "player",
 	"tiles": [
 	[
 		{ "tile_sprite": "short_grass.png", "stickiness": 0, "canWalk": true },
