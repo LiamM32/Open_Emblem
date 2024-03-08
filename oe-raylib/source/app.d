@@ -18,6 +18,7 @@ void main()
     scope(exit) CloseWindow();
 
     Mission mission = new Mission("../maps/test-map.json");
+    mission.run();
     writeln("Mission constructor finished.");
     CloseWindow();
 }

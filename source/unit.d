@@ -155,7 +155,7 @@ class Unit {
     }
 
     public void updateDistances(uint distancePassed = 0) {
-        
+        writeln("Unit "~this.name~" is on map "~to!string(this.map)~". Updating distances");
         foreach(int x, row; this.map.getGrid()) {
             foreach(int y, mapTile; row) {
                 this.distances[x][y].distance = 0;

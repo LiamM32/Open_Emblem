@@ -13,6 +13,8 @@ import tile;
 import unit;
 import vector_math;
 
+import vtile;
+
 const int TILESIZE = 64;
 
 class Mission : Map
@@ -20,7 +22,6 @@ class Mission : Map
     Texture2D[] sprites;
     Texture2D gridMarker;
     int[string] spriteIndex;
-    Unit[] playerUnits;
     Unit* selectedUnit;
     Rectangle[][] gridRects;
     GridTile[][] squareGrid;
@@ -86,7 +87,9 @@ class Mission : Map
         }
         this.gridMarker = LoadTexture("../sprites/grid-marker.png".toStringz);
         this.fullyLoaded = true;
+    }
 
+    void run() {
         startPreparation();
         playerTurn();
     }
@@ -210,7 +213,7 @@ class Mission : Map
 
         foreach (startTile; this.startingPoints) {
             startTile.occupant.map = this;
-            
+            writeln("Just assigned Unit.map to the Mission object.");
             this.factionUnits["player"] ~= *startTile.occupant;
         }
         this.startingPoints = [];
@@ -455,4 +458,16 @@ enum Colours {
     PAPER = Color(r:240, b:210, g:234, a:250),
     SHINE = Color(250, 250, 60, 35),
     CRIMSON = Color(230, 10, 15, 255),
+}
+
+
+unittest
+{
+    validateRaylibBinding();
+    Mission mission = new Mission("../maps/test-map.json");
+    writeln("Mission unittest: Finished Mission constructor.");
+    foreach (unit; mission.allUnits) {
+        assert(unit.map == mission);
+        if(mission != unit.map) writeln("These objects do not match"); 
+    }
 }
