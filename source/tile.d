@@ -14,7 +14,7 @@ class Tile
 	public string textureName;
 	public ushort textureID;
 	
-	public Unit* occupant;
+	public Unit occupant;
 
 	this() {}
 	
@@ -27,7 +27,7 @@ class Tile
 	}
 
 	void setOccupant(Unit occupant) {
-		this.occupant = &occupant;
+		this.occupant = occupant;
 	}
 	
 	bool allowUnit(bool isFlyer) {

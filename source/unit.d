@@ -147,7 +147,7 @@ class Unit {
         if (distances[x][y].distance > this.currentWeapon.range) return false;
         if (this.map.getTile(x, y).occupant is null) return false;
 
-        Unit opponent = *this.map.getTile(x, y).occupant;
+        Unit opponent = this.map.getTile(x, y).occupant;
         opponent.HP -= (this.Str * this.Str)/(this.Str + opponent.Def);
 
         return true;

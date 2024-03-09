@@ -135,7 +135,7 @@ class Map {
         return this.grid;
     }
 
-    Unit* getOccupant(int x, int y) {
+    Unit getOccupant(int x, int y) {
         return this.grid[x][y].occupant;
     }
     

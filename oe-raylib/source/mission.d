@@ -21,7 +21,7 @@ class Mission : Map
     Texture2D[] sprites;
     Texture2D gridMarker;
     int[string] spriteIndex;
-    Unit* selectedUnit;
+    Unit selectedUnit;
     static Font font;
     GridTile[][] squareGrid;
     Vector2 offset;
@@ -172,7 +172,7 @@ class Mission : Map
                     foreach (card; unitCards) if (CheckCollisionPointRec(mousePosition, card.outline)) {
                         searching = false;
                         if (card.available) {
-                            this.selectedUnit = &card.unit;
+                            this.selectedUnit = card.unit;
                             card.available = false;
                             break;
                         }
@@ -188,14 +188,14 @@ class Mission : Map
                     if (CheckCollisionPointRec(mousePosition, menuBox)) deployed = false;
                     else deployed = (this.selectedUnit.currentTile !is null);
                     foreach (gridTile; startingPoints) if (CheckCollisionPointRec(mousePosition, gridTile.getRect)) {
-                        Unit* previousOccupant = gridTile.tile.occupant;
+                        Unit previousOccupant = gridTile.tile.occupant;
                         if (gridTile.occupant !is null) {
-                            unitCards[*previousOccupant].available = true;
+                            unitCards[previousOccupant].available = true;
                         }
                         if (this.selectedUnit.currentTile !is null) this.selectedUnit.currentTile.occupant = null;
                         gridTile.tile.occupant = this.selectedUnit;
                         this.selectedUnit.currentTile = gridTile.tile;
-                        unitCards[*selectedUnit].available = false;
+                        unitCards[selectedUnit].available = false;
                         deployed = true;
                         writeln("Unit "~gridTile.tile.occupant.name~" is being deployed.");
                         if (previousOccupant !is null) previousOccupant.currentTile = null;
@@ -203,7 +203,7 @@ class Mission : Map
                         break;
                     }
                     if (!deployed) {
-                        unitCards[*selectedUnit].available = true;
+                        unitCards[selectedUnit].available = true;
                         if (this.selectedUnit.currentTile !is null) {
                             this.selectedUnit.currentTile.occupant = null;
                             this.selectedUnit.currentTile = null;
@@ -228,10 +228,11 @@ class Mission : Map
         }
         destroy(menuBox);
         
-        foreach (startTile; this.startingPoints) if (startTile.occupant !is null && (*startTile.occupant) !is null) {
+        foreach (startTile; this.startingPoints) if (startTile.occupant !is null) {
             writeln("Looking at starting tile "~to!string(startTile.x)~", "~to!string(startTile.y));
-            this.allUnits ~= *startTile.occupant;
-            this.factionUnits["player"] ~= *startTile.occupant;
+            this.allUnits ~= startTile.occupant;
+            this.factionUnits["player"] ~= startTile.occupant;
+            startTile.occupant.setLocation(startTile.x, startTile.y);
         }
         this.startingPoints = [];
     }
@@ -392,7 +393,7 @@ class Mission : Map
             return Vector2(x, y);
         }
 
-        Unit* occupant() {
+        Unit occupant() {
             return this.tile.occupant;
         }
         int spriteID() {
