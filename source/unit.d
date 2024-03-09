@@ -13,7 +13,7 @@ class Unit {
     public int xlocation;
     public int ylocation;
     public Direction direction;
-    public Tile* currentTile;
+    public Tile currentTile;
     public string faction;
     public uint spriteID;
     
@@ -104,11 +104,12 @@ class Unit {
         }
     }
 
-    /*~this() {
-        if (this in map.allUnits) {
+    ~this() {
+        /*if (this in map.allUnits) {
 
-        }
-    }*/
+        }*/
+        writeln("Unit "~this.name~"has been deleted.");
+    }
 
     void turnReset() {
         this.hasActed = false;
@@ -116,11 +117,10 @@ class Unit {
         updateDistances();
     }
     
-    void setLocation(Tile* tilePtr, bool runUpdateDistances) {
-        this.currentTile = tilePtr;
-        tilePtr.setOccupant(this);
+    void setLocation(Tile destination, bool runUpdateDistances) {
+        destination.setOccupant(this);
         foreach (int x, row; this.map.getGrid) {
-            foreach (int y, someTile; row) if (someTile == *tilePtr) {
+            foreach (int y, someTile; row) if (someTile == destination) {
                 this.xlocation = x;
                 this.ylocation = y;
                 break;
@@ -132,7 +132,7 @@ class Unit {
     void setLocation(int x, int y, bool runUpdateDistances = true) { //runUpdateDistances should be removed due to map.fullyLoaded being used instead. However, removing it causes a segfault.
         this.xlocation = x;
         this.ylocation = y;
-        this.currentTile = &this.map.getGrid[x][y];
+        this.currentTile = this.map.getTile(x,y);
         
         writeln(this.name ~ " location is now " ~ to!string(x) ~ ", " ~ to!string(y));
         

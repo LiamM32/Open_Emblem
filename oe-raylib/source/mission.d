@@ -27,6 +27,7 @@ class Mission : Map
     Vector2 offset;
     Rectangle mapView;
     Vector2i mapSizePx;
+    StopWatch missionTimer;
 
     GridTile[] startingPoints;
 
@@ -53,8 +54,8 @@ class Mission : Map
         this.grid.length = mapData.object["tiles"].array.length;
         this.squareGrid.length = mapData.object["tiles"].array.length;
         writeln("Starting to unload tile data");
-        foreach (int x, tileRow; mapData.object["tiles"].array) {
-            foreach (int y, tileData; tileRow.arrayNoRef) {
+        foreach (uint x, tileRow; mapData.object["tiles"].array) {
+            foreach (uint y, tileData; tileRow.arrayNoRef) {
                 string tileName = "";
                 if ("name" in tileData) tileName = tileData["name"].get!string;
                 bool allowStand = tileData["canWalk"].get!bool;
@@ -92,6 +93,7 @@ class Mission : Map
 
     void run() {
         startPreparation();
+        this.mapView = Rectangle(0, 0, GetScreenWidth, GetScreenHeight);
         playerTurn();
     }
 
@@ -102,13 +104,18 @@ class Mission : Map
         
         JSONValue playerUnitsData = parseJSON(readText("Units.json"));
         writeln("Opened Units.json");
-        foreach (int k, unitData; playerUnitsData.array) {
+        foreach (uint k, unitData; playerUnitsData.array) {
             Unit unit = loadUnitFromJSON(unitData, spriteIndex, false);
             unit.map = this;
             availableUnits ~= unit;
             unitCards[unit] = new UnitInfoCard(unit, k*258, GetScreenHeight()-88);
         }
         writeln("There are "~to!string(unitCards.length)~" units available.");
+
+        foreach (i, unit; this.allUnits) {
+            if (unit !is null) writeln("mission.allUnits has a unit named "~unit.name);
+            else writeln("mission.allUnits["~to!string(i)~"] is null");
+        }
 
         this.phase = GamePhase.Preparation;
 
@@ -118,7 +125,7 @@ class Mission : Map
             startButton = new TextButton(buttonOutline, this.font, "Start Mission", 15, Colours.CRIMSON, true);
         }
         
-        auto timer = StopWatch(AutoStart.yes);
+        missionTimer = StopWatch(AutoStart.yes);
         bool startButtonAvailable = false;
         Vector2 mousePosition = GetMousePosition();
         const Vector2 dragOffset = {x: -TILESIZE/2, y: -TILESIZE*0.75 };
@@ -146,7 +153,7 @@ class Mission : Map
                     DrawRectangleRec(startTile.getRect, Color(250, 30, 30, 30));
                 }
             }
-            drawGridMarkers(timer.peek.total!"msecs");
+            drawGridMarkers(missionTimer.peek.total!"msecs");
             drawUnits();
 
             DrawRectangleRec(menuBox, Colours.PAPER);
@@ -187,7 +194,7 @@ class Mission : Map
                         }
                         if (this.selectedUnit.currentTile !is null) this.selectedUnit.currentTile.occupant = null;
                         gridTile.tile.occupant = this.selectedUnit;
-                        this.selectedUnit.currentTile = &gridTile.tile;
+                        this.selectedUnit.currentTile = gridTile.tile;
                         unitCards[*selectedUnit].available = false;
                         deployed = true;
                         writeln("Unit "~gridTile.tile.occupant.name~" is being deployed.");
@@ -205,7 +212,7 @@ class Mission : Map
                     }
                 }
             }
-            if (unitsDeployed > 0 && timer.peek() >= msecs(1000*startingPoints.length/unitsDeployed)) {
+            if (unitsDeployed > 0 && missionTimer.peek() >= msecs(1000*startingPoints.length/unitsDeployed)) {
                 startButton.draw();
                 if (CheckCollisionPointRec(mousePosition, startButton.outline) && IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) {
                     EndDrawing();
@@ -219,8 +226,9 @@ class Mission : Map
         foreach (card; unitCards) {
             destroy(card);
         }
+        destroy(menuBox);
         
-        foreach (startTile; this.startingPoints) if (startTile.occupant !is null) {
+        foreach (startTile; this.startingPoints) if (startTile.occupant !is null && (*startTile.occupant) !is null) {
             writeln("Looking at starting tile "~to!string(startTile.x)~", "~to!string(startTile.y));
             this.allUnits ~= *startTile.occupant;
             this.factionUnits["player"] ~= *startTile.occupant;
@@ -230,31 +238,21 @@ class Mission : Map
 
     void playerTurn() {
         this.turnReset();
-
-        auto missionTimer = StopWatch(AutoStart.yes);
         
         Vector2 mousePosition = GetMousePosition();
         Vector2 highlightedTile;
 
-        bool oscDirection = false;
         ubyte markerOpacity;
 
         while(!WindowShouldClose())
         {
             mousePosition = GetMousePosition();
+            this.offsetMap(mapView);
             BeginDrawing();
 
-            if (oscDirection) {
-                markerOpacity += 2;
-                if (markerOpacity == 128) oscDirection = false;
-            } else {
-                markerOpacity -= 2;
-                if (markerOpacity == 32) oscDirection = true;
-            }
-
             drawTiles();
-            foreach (int gridx, row; this.squareGrid) {
-                foreach (int gridy, gridTile; row) {
+            foreach (uint gridx, row; this.squareGrid) {
+                foreach (uint gridy, gridTile; row) {
                     if (CheckCollisionPointRec(mousePosition, gridTile.getRect)) {
                         if (gridTile.tile.occupant !is null) {
                             if (IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) {
@@ -269,17 +267,18 @@ class Mission : Map
                         }
                         DrawRectangleRec(gridTile.getRect, Color(245, 245, 245, 32));
                     }
-                    DrawTextureEx(gridMarker, Vector2(gridx*TILESIZE, gridy*TILESIZE), 0.0, 1.0, Color(10,10,10, markerOpacity));
+                    //DrawTextureEx(gridMarker, Vector2(gridx*TILESIZE, gridy*TILESIZE), 0.0, 1.0, Color(10,10,10, markerOpacity));
                 }
             }
+            drawGridMarkers(missionTimer.peek.total!"msecs");
             drawUnits();
             EndDrawing();
         }
     }
 
     void drawTiles() {
-        foreach (int x, row; this.squareGrid) {
-            foreach (int y, gridTile; row) {
+        foreach (uint x, row; this.squareGrid) {
+            foreach (uint y, gridTile; row) {
                 DrawTextureV(gridTile.sprite, gridTile.getOriginSS, Colors.WHITE);
             }
         }
@@ -291,8 +290,8 @@ class Mission : Map
         
         float sinwave = 80*(sin(cast(float)time/300.0f)+1.0);
         int opacity = sinwave.to!int + 20;
-        foreach (int x, row; this.squareGrid) {
-            foreach (int y, gridTile; row) {
+        foreach (uint x, row; this.squareGrid) {
+            foreach (uint y, gridTile; row) {
                 DrawTextureV(this.gridMarker, gridTile.getOriginSS, Color(10,10,10, cast(ubyte)sinwave));
             }
         }

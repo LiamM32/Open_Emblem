@@ -113,8 +113,11 @@ class Map {
     }
 
     void turnReset() {
+        import std.conv;
+        
         foreach(unit; this.allUnits) {
-            unit.turnReset;
+            if (unit !is null) unit.turnReset;
+            else writeln("allUnits contains an empty member");
         }
     }
 
@@ -124,8 +127,8 @@ class Map {
         }
     }
     
-    Tile* getTile(int x, int y) {
-        return &this.grid[x][y];
+    Tile getTile(int x, int y) {
+        return this.grid[x][y];
     }
 
     Tile[][] getGrid() {
