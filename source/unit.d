@@ -31,6 +31,7 @@ class Unit {
     public Weapon* currentWeapon;
     private TileAccess[][] distances;
     private uint MvRemaining;
+    public bool hasActed;
     public int HP;
 
     this(string name, Map map, UnitStats stats, uint xlocation, uint ylocation) {
@@ -47,7 +48,6 @@ class Unit {
 
     this(string name, Map map, UnitStats stats) {
         this.map = map;
-        this.map.allUnits ~= this;
         this(name, stats);
     }
 
@@ -76,14 +76,12 @@ class Unit {
     
     this(Map map, JSONValue unitData) {
         this.map = map;
-        this.map.allUnits ~= this;
         this.setDistanceArraySize;
         this(unitData);
     }
 
     this(Map map, JSONValue unitData, int textureID) {
         this.map = map;
-        this.map.allUnits ~= this;
         this.setDistanceArraySize;
         this(unitData);
     }
@@ -113,6 +111,7 @@ class Unit {
     }*/
 
     void turnReset() {
+        this.hasActed = false;
         this.MvRemaining = this.Mv;
         updateDistances();
     }
@@ -170,11 +169,9 @@ class Unit {
     
     private bool updateDistances(uint distancePassed, int x, int y) {
         import tile;
-        write("Doing Unit.updateDistances. Now at tile "~to!string(x)~", "~to!string(y)~". ");
         if (!this.map.getTile(x, y).allowUnit(this.isFlyer)) return false;
         if (this.distances[x][y].measured && this.distances[x][y].distance <= distancePassed) return false;
-        else if (this.distances[x][y].distance <= this.Mv) this.distances[x][y].reachable = true;
-        writeln("distancePassed = "~to!string(distancePassed));
+        else if (this.distances[x][y].distance <= this.MvRemaining) this.distances[x][y].reachable = true;
         
         this.distances[x][y].distance = distancePassed;
         this.distances[x][y].measured = true;

@@ -12,8 +12,7 @@ import map;
 import tile;
 import unit;
 import vector_math;
-
-import vtile;
+import ui;
 
 const int TILESIZE = 64;
 
@@ -23,7 +22,7 @@ class Mission : Map
     Texture2D gridMarker;
     int[string] spriteIndex;
     Unit* selectedUnit;
-    Rectangle[][] gridRects;
+    static Font font;
     GridTile[][] squareGrid;
     Vector2 offset;
     Rectangle mapView;
@@ -45,6 +44,8 @@ class Mission : Map
         this.offset = Vector2(0.0f, 0.0f);
         import std.algorithm;
         import std.conv;
+
+        this.font = LoadFont("../sprites/font/LiberationSerif-Regular.ttf");
 
         super(mapData["map_name"].get!string);
         super.loadFactionsFromJSON(mapData);
@@ -97,20 +98,25 @@ class Mission : Map
     void startPreparation() {   
         Rectangle menuBox = {x:0, y:GetScreenHeight()-96, width:GetScreenWidth(), height:96};
         Unit[] availableUnits;
-        UnitCard[Unit] unitCards;
+        UnitInfoCard[Unit] unitCards;
         
         JSONValue playerUnitsData = parseJSON(readText("Units.json"));
         writeln("Opened Units.json");
         foreach (int k, unitData; playerUnitsData.array) {
             Unit unit = loadUnitFromJSON(unitData, spriteIndex, false);
+            unit.map = this;
             availableUnits ~= unit;
-            unitCards[unit] = new UnitCard(unit, k*258, GetScreenHeight()-88);
+            unitCards[unit] = new UnitInfoCard(unit, k*258, GetScreenHeight()-88);
         }
         writeln("There are "~to!string(unitCards.length)~" units available.");
-        
-        scope(exit) CloseWindow();
 
         this.phase = GamePhase.Preparation;
+
+        TextButton startButton;
+        {
+            Rectangle buttonOutline = {x:GetScreenWidth()-112, y:menuBox.y-16, width:80, height:32};
+            startButton = new TextButton(buttonOutline, this.font, "Start Mission", 15, Colours.CRIMSON, true);
+        }
         
         auto timer = StopWatch(AutoStart.yes);
         bool startButtonAvailable = false;
@@ -145,7 +151,7 @@ class Mission : Map
 
             DrawRectangleRec(menuBox, Colours.PAPER);
             foreach (card; unitCards) if (card.available) {
-                card.draw();
+                card.draw(this.sprites);
             }
 
             if (IsKeyDown(KeyboardKey.KEY_SPACE)) {
@@ -156,7 +162,7 @@ class Mission : Map
             if (this.selectedUnit is null) {
                 if (IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) {
                     bool searching = true;
-                    foreach (card; unitCards) if (CheckCollisionPointRec(mousePosition, card.outerRect)) {
+                    foreach (card; unitCards) if (CheckCollisionPointRec(mousePosition, card.outline)) {
                         searching = false;
                         if (card.available) {
                             this.selectedUnit = &card.unit;
@@ -200,10 +206,9 @@ class Mission : Map
                 }
             }
             if (unitsDeployed > 0 && timer.peek() >= msecs(1000*startingPoints.length/unitsDeployed)) {
-                Rectangle startButton = {GetScreenWidth-92, GetScreenHeight-160, 80, 48};
-                DrawRectangleRec(startButton, Colours.CRIMSON);
-                DrawText("Start mission".toStringz, GetScreenWidth-92, GetScreenHeight-140, 16, Colours.PAPER);
-                if (CheckCollisionPointRec(mousePosition, startButton) && IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) {
+                startButton.draw();
+                if (CheckCollisionPointRec(mousePosition, startButton.outline) && IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) {
+                    EndDrawing();
                     this.nextTurn;
                     break;
                 };
@@ -211,9 +216,13 @@ class Mission : Map
             EndDrawing();
         }
 
-        foreach (startTile; this.startingPoints) {
-            startTile.occupant.map = this;
-            writeln("Just assigned Unit.map to the Mission object.");
+        foreach (card; unitCards) {
+            destroy(card);
+        }
+        
+        foreach (startTile; this.startingPoints) if (startTile.occupant !is null) {
+            writeln("Looking at starting tile "~to!string(startTile.x)~", "~to!string(startTile.y));
+            this.allUnits ~= *startTile.occupant;
             this.factionUnits["player"] ~= *startTile.occupant;
         }
         this.startingPoints = [];
@@ -221,8 +230,6 @@ class Mission : Map
 
     void playerTurn() {
         this.turnReset();
-
-        //scope(exit) CloseWindow();
 
         auto missionTimer = StopWatch(AutoStart.yes);
         
@@ -234,8 +241,8 @@ class Mission : Map
 
         while(!WindowShouldClose())
         {
-            BeginDrawing();
             mousePosition = GetMousePosition();
+            BeginDrawing();
 
             if (oscDirection) {
                 markerOpacity += 2;
@@ -268,7 +275,6 @@ class Mission : Map
             drawUnits();
             EndDrawing();
         }
-        CloseWindow();
     }
 
     void drawTiles() {
@@ -281,7 +287,9 @@ class Mission : Map
 
     void drawGridMarkers(long time) {
         import std.math.trigonometry:sin;
-        float sinwave = 60*(sin(cast(float)time/300.0f)+1.0);
+        import std.math;
+        
+        float sinwave = 80*(sin(cast(float)time/300.0f)+1.0);
         int opacity = sinwave.to!int + 20;
         foreach (int x, row; this.squareGrid) {
             foreach (int y, gridTile; row) {
@@ -335,9 +343,7 @@ class Mission : Map
     }
 
     Unit loadUnitFromJSON (JSONValue unitData, ref int[string] spriteIndex, bool addToMap=true) {
-        Unit newUnit;
-        if (addToMap) newUnit = new Unit(this, unitData);
-        else newUnit = new Unit(unitData);
+        Unit newUnit = new Unit(this, unitData);
         string spriteName = unitData["Sprite"].get!string;
         if (spriteName in spriteIndex) {
             newUnit.spriteID = spriteIndex[spriteName];
@@ -350,7 +356,7 @@ class Mission : Map
             if (!spritePath.endsWith(".png")) spritePath ~= ".png";
             this.sprites ~= LoadTexture(spritePath.toStringz);
         }
-        //allUnits ~= newUnit; Removed because this was added to Unit.this
+        if (addToMap) allUnits ~= newUnit;
         return newUnit;
     }
 
@@ -397,47 +403,6 @@ class Mission : Map
             return this.outer.sprites[this.tile.textureID];
         }
     }
-
-    class UnitCard
-    {
-        Rectangle outerRect;
-        Rectangle imageFrame;
-        int x;
-        int y;
-        int width;
-        int height;
-        Unit unit;
-        bool available = true;
-        string infotext;
-
-        this (Unit unit, int screenx, int screeny ) {
-            this.outerRect = Rectangle(screenx, screeny, 192, 80);
-            this.imageFrame = Rectangle(screenx+4, screeny+4, 64, 64);
-            this.unit = unit;
-            this.x = screenx;
-            this.y = screeny;
-            this.width = 256;
-            this.height = 72;
-
-            UnitStats stats = unit.getStats;
-            this.infotext ~= "Mv: "~to!string(stats.Mv)~"\n";
-            this.infotext ~= "MHP: "~to!string(stats.MHP)~"\n";
-            this.infotext ~= "Str: "~to!string(stats.Str)~"\n";
-            this.infotext ~= "Def: "~to!string(stats.Def)~"\n";
-        }
-
-        UnitStats stats() {
-            return this.unit.getStats;
-        }
-
-        void draw() {
-            DrawRectangleRec(outerRect, Color(r:250, b:230, g:245, a:200));
-            DrawRectangleLinesEx(outerRect, 1.0f, Colors.BLACK);
-            DrawTexture(this.outer.sprites[this.unit.spriteID], cast(int)outerRect.x+4, cast(int)outerRect.y+2, Colors.WHITE);
-            DrawText(this.unit.name.toStringz, x+80, y+4, 14, Colors.BLACK);
-            DrawText(this.infotext.toStringz, x+80, y+20, 11, Colors.BLACK);
-        }
-    }
 }
 
 ushort loadNumberTexture (string spriteName, ref int[string] spriteIndex, ref Texture2D[] sprites) {
@@ -452,14 +417,6 @@ ushort loadNumberTexture (string spriteName, ref int[string] spriteIndex, ref Te
     }
     return spriteID;
 }
-
-enum Colours {
-    SHADOW = Color(r:20, b:20, g:20, a:25),
-    PAPER = Color(r:240, b:210, g:234, a:250),
-    SHINE = Color(250, 250, 60, 35),
-    CRIMSON = Color(230, 10, 15, 255),
-}
-
 
 unittest
 {

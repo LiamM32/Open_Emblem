@@ -156,9 +156,6 @@ class Map {
         this.textureIndex ~= textureName;
         return cast(ushort)(this.textureIndex.length - 1);
     }
-
-    /*Unit*///void loadUnitFromJSON (JSONValue UnitData);
-    //void loadJSONTileData (JSONValue TileData);
 }
 
 ushort findAssignTextureID (string[] textureIndex, string textureName) {
