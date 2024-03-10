@@ -25,8 +25,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
     Texture2D gridMarker;
     Texture2D*[string] spriteIndex;
     Unit selectedUnit;
-    static Font font;
-    GridTile[][] squareGrid;
+    public static Font font;
     Vector2 offset;
     Rectangle mapView;
     Vector2i mapSizePx;
@@ -55,7 +54,6 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         super.loadFactionsFromJSON(mapData);
 
         this.grid.length = mapData.object["tiles"].array.length;
-        this.squareGrid.length = mapData.object["tiles"].array.length;
         writeln("Starting to unload tile data");
         foreach (uint x, tileRow; mapData.object["tiles"].array) {
             foreach (uint y, tileData; tileRow.arrayNoRef) {
@@ -69,8 +67,6 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                 }
                 GridTile gridTile = new GridTile(tile, x, y);
                 this.grid[x] ~= tile;
-                this.squareGrid[x] ~= gridTile;
-                assert(this.grid[x][y] == this.squareGrid[x][y].tile);
                 if ("Unit" in tileData) {
                     VisibleUnit occupyingUnit = new VisibleUnit(this, tileData["Unit"]);
                     this.allUnits ~= occupyingUnit;
@@ -126,12 +122,13 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         TextButton startButton;
         {
             Rectangle buttonOutline = {x:GetScreenWidth()-112, y:menuBox.y-16, width:80, height:32};
-            startButton = new TextButton(buttonOutline, this.font, "Start Mission", 15, Colours.CRIMSON, true);
+            startButton = new TextButton(buttonOutline, this.font, "Start Mission", 16, Colours.Crimson, true);
         }
         
         missionTimer = StopWatch(AutoStart.yes);
         bool startButtonAvailable = false;
         Vector2 mousePosition = GetMousePosition();
+        bool leftClick;
         const Vector2 dragOffset = {x: -TILESIZE/2, y: -TILESIZE*0.75 };
         this.offset = Vector2(0.0, -96.0);
         this.mapView = Rectangle(0, 0, GetScreenWidth, GetScreenHeight-96);
@@ -139,6 +136,8 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
 
         while(!WindowShouldClose()) {
             unitsDeployed = 0;
+            mousePosition = GetMousePosition();
+            leftClick = IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT);
             BeginDrawing();
             this.offsetMap(mapView);
             drawTiles();
@@ -161,8 +160,8 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
             drawGridMarkers(missionTimer.peek.total!"msecs");
             drawUnits();
 
-            DrawRectangleRec(menuBox, Colours.PAPER);
-            foreach (card; unitCards) if (card.available) {
+            DrawRectangleRec(menuBox, Colours.Paper);
+            foreach (card; unitCards) if (card.unit.currentTile is null) {
                 card.draw(this.sprites);
             }
 
@@ -170,7 +169,6 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                 DrawRectangleRec(mapView, Color(250, 20, 20, 50));
             }
 
-            mousePosition = GetMousePosition();
             if (this.selectedUnit is null) {
                 if (IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) {
                     bool searching = true;
@@ -178,7 +176,6 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                         searching = false;
                         if (card.available) {
                             this.selectedUnit = card.unit;
-                            card.available = false;
                             break;
                         }
                     }
@@ -194,13 +191,9 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                     else deployed = (this.selectedUnit.currentTile !is null);
                     foreach (tile; startingPoints) if (CheckCollisionPointRec(mousePosition, tile.getRect(offset))) {
                         Unit previousOccupant = tile.occupant;
-                        if (tile.occupant !is null) {
-                            unitCards[previousOccupant].available = true;
-                        }
                         if (this.selectedUnit.currentTile !is null) this.selectedUnit.currentTile.occupant = null;
                         tile.occupant = this.selectedUnit;
                         this.selectedUnit.currentTile = tile;
-                        unitCards[selectedUnit].available = false;
                         deployed = true;
                         writeln("Unit "~tile.occupant.name~" is being deployed.");
                         if (previousOccupant !is null) previousOccupant.currentTile = null;
@@ -208,7 +201,6 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                         break;
                     }
                     if (!deployed) {
-                        unitCards[selectedUnit].available = true;
                         if (this.selectedUnit.currentTile !is null) {
                             this.selectedUnit.currentTile.occupant = null;
                             this.selectedUnit.currentTile = null;
@@ -224,6 +216,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                     break;
                 };
             }
+            DrawFPS(20, 20);
             EndDrawing();
         }
 
@@ -238,11 +231,9 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
             this.factionUnits["player"] ~= cast(VisibleUnit) startTile.occupant;
             startTile.occupant.setLocation(startTile.x(), startTile.y());
         }
-        this.startingPoints = [];
+        this.startingPoints.length = 0;
 
-        foreach (unit; this.allUnits) {
-            unit.verify();
-        }
+        foreach (unit; this.allUnits) unit.verify();
 
         this.nextTurn;
     }
@@ -251,26 +242,51 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         this.turnReset();
         
         Vector2 mousePosition = GetMousePosition();
+        bool onMap = true;
+        bool leftClick = false;
 
         TextButton moveButton;
         TextButton attackButton;
         TextButton itemsButton;
+        TextButton waitButton;
+        TextButton backButton;
+        {
+            Rectangle buttonOutline = {x:GetScreenWidth-112, y:GetScreenHeight-32, 80, 32};
+            backButton = new TextButton(buttonOutline, font, "Back", 16, Colours.Crimson, true);
+            buttonOutline.y -= 48;
+            waitButton = new TextButton(buttonOutline, font, "Wait", 16, Colours.Crimson, true);
+            buttonOutline.y -= 48;
+            moveButton = new TextButton(buttonOutline, font, "Move", 16, Colours.Crimson, true);
+            buttonOutline.y -= 48;
+            attackButton = new TextButton(buttonOutline, font, "Attack", 16, Colours.Crimson, true);
+            buttonOutline.y -= 48;
+            itemsButton = new TextButton(buttonOutline, font, "Items", 16, Colours.Crimson, true);
+        }
+        assert(moveButton.buttonColour == Colours.Crimson, "Move button does not appear to be initialized.");
 
+        debug {
+            moveButton.dump;
+            attackButton.dump;
+        }
+        
         enum Action:ubyte {Nothing, Move, Attack, Items};
         Action playerAction = Action.Nothing;
 
         while(!WindowShouldClose())
         {
+            debug if (playerAction != Action.Nothing && selectedUnit is null) throw new Exception ("`playerAction is not set to `Nothing`, but `selectedUnit` is null.");
             mousePosition = GetMousePosition();
+            leftClick = IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT);
             this.offsetMap(mapView);
             BeginDrawing();
 
             drawTiles();
             foreach (uint gridx, row; this.grid) {
                 foreach (uint gridy, tile; row) {
+                    if (playerAction == Action.Move && selectedUnit.getDistance(gridx,gridy).reachable) DrawRectangleRec(tile.getRect(offset), Color(60, 240, 120, 30));
                     if (CheckCollisionPointRec(mousePosition, tile.getRect(offset))) {
                         if (tile.occupant !is null) {
-                            if (IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) {
+                            if (leftClick && playerAction == Action.Nothing) {
                                 this.selectedUnit = tile.occupant;
                                 this.selectedUnit.updateDistances();
                             }
@@ -279,13 +295,42 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                                     DrawRectangleRec(tile.getRect(offset), Color(100, 100, 245, 32));
                                 }
                             }
+                        } else {
+                            if(playerAction == Action.Move && leftClick && selectedUnit.getDistance(gridx,gridy).reachable) {
+                                selectedUnit.move(gridx, gridy);
+                            }
                         }
-                        DrawRectangleRec(tile.getRect(offset), Color(245, 245, 245, 32));
+                        if (onMap) DrawRectangleRec(tile.getRect(offset), Colours.CursorHighlight);
                     }
                 }
             }
+            if (selectedUnit !is null) DrawRectangleRec((cast(VisibleTile)selectedUnit.currentTile).rect, Colours.CursorHighlight);
             drawGridMarkers(missionTimer.peek.total!"msecs");
             drawUnits();
+            if (selectedUnit !is null) {
+                if (playerAction == Action.Nothing) {
+                    moveButton.draw;
+                    attackButton.draw;
+                    itemsButton.draw;
+                    waitButton.draw;
+                    if (CheckCollisionPointRec(mousePosition, moveButton.outline)) {
+                        onMap = false;
+                        if (leftClick) playerAction = Action.Move;
+                    } else if (CheckCollisionPointRec(mousePosition, attackButton.outline)) {
+                        onMap = false;
+                        if (leftClick) playerAction = Action.Attack;
+                    } else if (CheckCollisionPointRec(mousePosition, itemsButton.outline)) {
+                        onMap = false;
+                        if (leftClick) playerAction = Action.Items;
+                    } else onMap = true;
+                } else {
+                    backButton.draw;
+                    if (CheckCollisionPointRec(mousePosition, backButton.outline)) {
+                        onMap = false;
+                        if (leftClick) playerAction = Action.Nothing;
+                    } else onMap = true;
+                }
+            }
             EndDrawing();
         }
 

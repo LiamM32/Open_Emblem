@@ -31,7 +31,7 @@ class Unit {
     public Item[5]* inventory;
     public Weapon* currentWeapon;
     private TileAccess[][] distances;
-    private uint MvRemaining;
+    private int MvRemaining;
     alias moveRemaining = MvRemaining;
     public bool hasActed;
     public int HP;
@@ -148,6 +148,7 @@ class Unit {
         if (this.distances[x][y].reachable) {
             this.moveRemaining -= this.distances[x][y].distance;
             this.setLocation(x, y, true);
+            writeln(this.name~" has "~to!string(MvRemaining)~" Mv remaining.");
             return true;
         } else return false;
     }
@@ -187,7 +188,7 @@ class Unit {
         
         distancePassed += this.map.getTile(x, y).stickyness;
         
-        if (distancePassed <= this.Mv * this.lookahead -2) {
+        if (distancePassed <= this.MvRemaining*lookahead -2) {
             bool canWest = false;
             bool canNorth = false;
             bool canEast = false;
@@ -197,7 +198,7 @@ class Unit {
             if (x+1 < this.map.getWidth()) canEast = this.updateDistances(distancePassed +2, x+1, y);
             if (y > 0) canSouth = this.updateDistances(distancePassed +2, x, y-1);
             
-            if (distancePassed <= this.Mv * this.lookahead -3) {
+            if (distancePassed <= this.MvRemaining*lookahead -3) {
                 if (canWest && canSouth) this.updateDistances(distancePassed +3, x-1, y-1);
                 if (canWest && canNorth) this.updateDistances(distancePassed +3, x-1, y+1);
                 if (canEast && canNorth) this.updateDistances(distancePassed +3, x+1, y+1);
