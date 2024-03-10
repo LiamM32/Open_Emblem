@@ -39,9 +39,9 @@ class Tile
 	}
 
 	int x() {
-		return cast(int) this.x;
+		return cast(int) this.xlocation;
 	}
 	int y() {
-		return cast(int) this.y;
+		return cast(int) this.ylocation;
 	}
 }

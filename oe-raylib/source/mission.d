@@ -73,6 +73,8 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                 assert(this.grid[x][y] == this.squareGrid[x][y].tile);
                 if ("Unit" in tileData) {
                     VisibleUnit occupyingUnit = new VisibleUnit(this, tileData["Unit"]);
+                    this.allUnits ~= occupyingUnit;
+                    this.factionUnits[occupyingUnit.faction] ~= occupyingUnit;
                     occupyingUnit.setLocation(x, y);
                 } else if ("Player Unit" in tileData) {
                     this.grid[x][y].startLocation = true;
@@ -107,7 +109,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         JSONValue playerUnitsData = parseJSON(readText("Units.json"));
         writeln("Opened Units.json");
         foreach (uint k, unitData; playerUnitsData.array) {
-            Unit unit = loadUnitFromJSON(unitData, spriteIndex, false);
+            VisibleUnit unit = loadUnitFromJSON(unitData, spriteIndex, false);
             unit.map = this;
             availableUnits ~= unit;
             unitCards[unit] = new UnitInfoCard(unit, k*258, GetScreenHeight()-88);
@@ -140,9 +142,10 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
             BeginDrawing();
             this.offsetMap(mapView);
             drawTiles();
-            foreach(startTile; startingPoints) {
-                DrawRectangleRec(startTile.getRect, Color(250, 250, 60, 60));
-                DrawRectangleLinesEx(startTile.getRect, 1.5f, Color(240, 240, 40, 120));
+            foreach(startTile; startingPoints) { //This loop handles the starting locations, where the player may place their units.
+                Rectangle startTileRect = startTile.getRect(offset);
+                DrawRectangleRec(startTileRect, Color(250, 250, 60, 60));
+                DrawRectangleLinesEx(startTileRect, 1.5f, Color(240, 240, 40, 120));
                 if (startTile.occupant !is null) {
                     unitsDeployed++;
                     Vector2 destination = startTile.getDestination(offset) + Vector2(0, -24);
@@ -151,8 +154,8 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                     else tint = Color(255, 255, 255, 255);
                     DrawTextureV((cast(VisibleUnit)startTile.occupant).sprite, destination, tint);
                 }
-                if (CheckCollisionPointRec(mousePosition, startTile.getRect)) {
-                    DrawRectangleRec(startTile.getRect, Color(250, 30, 30, 30));
+                if (CheckCollisionPointRec(mousePosition, startTileRect)) {
+                    DrawRectangleRec(startTileRect, Color(250, 30, 30, 30));
                 }
             }
             drawGridMarkers(missionTimer.peek.total!"msecs");
@@ -179,7 +182,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                             break;
                         }
                     }
-                    if (searching) foreach (startTile; startingPoints) if (CheckCollisionPointRec(mousePosition, startTile.getRect)) {
+                    if (searching) foreach (startTile; startingPoints) if (CheckCollisionPointRec(mousePosition, startTile.getRect(offset))) {
                         this.selectedUnit = startTile.occupant;
                     }
                 }
@@ -189,7 +192,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                     bool deployed;
                     if (CheckCollisionPointRec(mousePosition, menuBox)) deployed = false;
                     else deployed = (this.selectedUnit.currentTile !is null);
-                    foreach (tile; startingPoints) if (CheckCollisionPointRec(mousePosition, tile.getRect)) {
+                    foreach (tile; startingPoints) if (CheckCollisionPointRec(mousePosition, tile.getRect(offset))) {
                         Unit previousOccupant = tile.occupant;
                         if (tile.occupant !is null) {
                             unitCards[previousOccupant].available = true;
@@ -218,7 +221,6 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                 startButton.draw();
                 if (CheckCollisionPointRec(mousePosition, startButton.outline) && IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) {
                     EndDrawing();
-                    this.nextTurn;
                     break;
                 };
             }
@@ -231,12 +233,18 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         destroy(menuBox);
         
         foreach (startTile; this.startingPoints) if (startTile.occupant !is null) {
-            writeln("Looking at starting tile "~to!string(startTile.x)~", "~to!string(startTile.y));
+            writeln("Looking at starting tile "~to!string(startTile.x())~", "~to!string(startTile.y()));
             this.allUnits ~= cast(VisibleUnit) startTile.occupant;
             this.factionUnits["player"] ~= cast(VisibleUnit) startTile.occupant;
-            startTile.occupant.setLocation(startTile.x, startTile.y);
+            startTile.occupant.setLocation(startTile.x(), startTile.y());
         }
         this.startingPoints = [];
+
+        foreach (unit; this.allUnits) {
+            unit.verify();
+        }
+
+        this.nextTurn;
     }
 
     void playerTurn() {
@@ -260,7 +268,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
             drawTiles();
             foreach (uint gridx, row; this.grid) {
                 foreach (uint gridy, tile; row) {
-                    if (CheckCollisionPointRec(mousePosition, tile.getRect)) {
+                    if (CheckCollisionPointRec(mousePosition, tile.getRect(offset))) {
                         if (tile.occupant !is null) {
                             if (IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) {
                                 this.selectedUnit = tile.occupant;
@@ -268,11 +276,11 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                             }
                             if (this.selectedUnit !is null) {
                                 if (this.selectedUnit.getDistance(gridx, gridy).reachable) {
-                                    DrawRectangleRec(tile.getRect, Color(100, 100, 245, 32));
+                                    DrawRectangleRec(tile.getRect(offset), Color(100, 100, 245, 32));
                                 }
                             }
                         }
-                        DrawRectangleRec(tile.getRect, Color(245, 245, 245, 32));
+                        DrawRectangleRec(tile.getRect(offset), Color(245, 245, 245, 32));
                     }
                 }
             }
@@ -280,6 +288,8 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
             drawUnits();
             EndDrawing();
         }
+
+        this.nextTurn();
     }
 
     void drawTiles() {

@@ -40,4 +40,11 @@ class VisibleTile : Tile//T!VisibleTile
     Rectangle getRect() {
         return this.rect;
     }
+
+    Rectangle getRect(Vector2 offset) {
+        Rectangle rect = this.rect;
+        rect.x += offset.x;
+        rect.y += offset.y;
+        return rect;
+    }
 }
