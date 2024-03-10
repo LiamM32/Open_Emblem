@@ -27,8 +27,6 @@ class VisibleTile : Tile//T!VisibleTile
         this.rect.y = cast(float) y * TILEHEIGHT;
         this.rect.width = TILEWIDTH;
         this.rect.height = TILEHEIGHT;
-        
-        if (textureName in spriteIndex) this.sprite = spriteIndex[textureName];
 
         super();
     }

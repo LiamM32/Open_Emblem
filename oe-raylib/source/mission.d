@@ -13,12 +13,13 @@ import map;
 import tile;
 import vtile;
 import unit;
+import vunit;
 import vector_math;
 import ui;
 
 const int TILESIZE = 64;
 
-class Mission : MapTemp!VisibleTile
+class Mission : MapTemp!(VisibleTile, VisibleUnit)
 {
     Texture2D[] sprites;
     Texture2D gridMarker;
@@ -31,7 +32,7 @@ class Mission : MapTemp!VisibleTile
     Vector2i mapSizePx;
     StopWatch missionTimer;
 
-    GridTile[] startingPoints;
+    VisibleTile[] startingPoints;
 
     this() {
         JSONValue missionData = parseJSON(readText("../maps/Test_battlefield.json"));
@@ -71,11 +72,11 @@ class Mission : MapTemp!VisibleTile
                 this.squareGrid[x] ~= gridTile;
                 assert(this.grid[x][y] == this.squareGrid[x][y].tile);
                 if ("Unit" in tileData) {
-                    Unit occupyingUnit = this.loadUnitFromJSON(tileData["Unit"], spriteIndex);
+                    VisibleUnit occupyingUnit = new VisibleUnit(this, tileData["Unit"]);
                     occupyingUnit.setLocation(x, y);
                 } else if ("Player Unit" in tileData) {
                     this.grid[x][y].startLocation = true;
-                    startingPoints ~= gridTile;
+                    startingPoints ~= tile;
                 }
             }
             write("Finished loading row ");
@@ -144,11 +145,11 @@ class Mission : MapTemp!VisibleTile
                 DrawRectangleLinesEx(startTile.getRect, 1.5f, Color(240, 240, 40, 120));
                 if (startTile.occupant !is null) {
                     unitsDeployed++;
-                    Vector2 destination = startTile.getOriginSS + Vector2(0, -24);
+                    Vector2 destination = startTile.getDestination(offset) + Vector2(0, -24);
                     Color tint;
-                    if (startTile.tile.occupant == this.selectedUnit) tint = Color(250, 250, 250, 190);
+                    if (startTile.occupant == this.selectedUnit) tint = Color(250, 250, 250, 190);
                     else tint = Color(255, 255, 255, 255);
-                    DrawTextureV(this.sprites[startTile.tile.occupant.spriteID], destination, tint);
+                    DrawTextureV((cast(VisibleUnit)startTile.occupant).sprite, destination, tint);
                 }
                 if (CheckCollisionPointRec(mousePosition, startTile.getRect)) {
                     DrawRectangleRec(startTile.getRect, Color(250, 30, 30, 30));
@@ -179,26 +180,26 @@ class Mission : MapTemp!VisibleTile
                         }
                     }
                     if (searching) foreach (startTile; startingPoints) if (CheckCollisionPointRec(mousePosition, startTile.getRect)) {
-                        this.selectedUnit = startTile.tile.occupant;
+                        this.selectedUnit = startTile.occupant;
                     }
                 }
             } else {
-                DrawTextureV(this.sprites[this.selectedUnit.spriteID], mousePosition+dragOffset, Colors.WHITE);
+                DrawTextureV((cast(VisibleUnit)this.selectedUnit).sprite, mousePosition+dragOffset, Colors.WHITE);
                 if (IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) {
                     bool deployed;
                     if (CheckCollisionPointRec(mousePosition, menuBox)) deployed = false;
                     else deployed = (this.selectedUnit.currentTile !is null);
-                    foreach (gridTile; startingPoints) if (CheckCollisionPointRec(mousePosition, gridTile.getRect)) {
-                        Unit previousOccupant = gridTile.tile.occupant;
-                        if (gridTile.occupant !is null) {
+                    foreach (tile; startingPoints) if (CheckCollisionPointRec(mousePosition, tile.getRect)) {
+                        Unit previousOccupant = tile.occupant;
+                        if (tile.occupant !is null) {
                             unitCards[previousOccupant].available = true;
                         }
                         if (this.selectedUnit.currentTile !is null) this.selectedUnit.currentTile.occupant = null;
-                        gridTile.tile.occupant = this.selectedUnit;
-                        this.selectedUnit.currentTile = gridTile.tile;
+                        tile.occupant = this.selectedUnit;
+                        this.selectedUnit.currentTile = tile;
                         unitCards[selectedUnit].available = false;
                         deployed = true;
-                        writeln("Unit "~gridTile.tile.occupant.name~" is being deployed.");
+                        writeln("Unit "~tile.occupant.name~" is being deployed.");
                         if (previousOccupant !is null) previousOccupant.currentTile = null;
                         this.selectedUnit = previousOccupant;
                         break;
@@ -231,8 +232,8 @@ class Mission : MapTemp!VisibleTile
         
         foreach (startTile; this.startingPoints) if (startTile.occupant !is null) {
             writeln("Looking at starting tile "~to!string(startTile.x)~", "~to!string(startTile.y));
-            this.allUnits ~= startTile.occupant;
-            this.factionUnits["player"] ~= startTile.occupant;
+            this.allUnits ~= cast(VisibleUnit) startTile.occupant;
+            this.factionUnits["player"] ~= cast(VisibleUnit) startTile.occupant;
             startTile.occupant.setLocation(startTile.x, startTile.y);
         }
         this.startingPoints = [];
@@ -295,9 +296,9 @@ class Mission : MapTemp!VisibleTile
         
         float sinwave = 80*(sin(cast(float)time/300.0f)+1.0);
         int opacity = sinwave.to!int + 20;
-        foreach (uint x, row; this.squareGrid) {
-            foreach (uint y, gridTile; row) {
-                DrawTextureV(this.gridMarker, gridTile.getOriginSS, Color(10,10,10, cast(ubyte)sinwave));
+        foreach (uint x, row; this.grid) {
+            foreach (uint y, tile; row) {
+                DrawTextureV(this.gridMarker, tile.getDestination(offset), Color(10,10,10, cast(ubyte)sinwave));
             }
         }
     }
@@ -305,7 +306,7 @@ class Mission : MapTemp!VisibleTile
     void drawUnits() {
         foreach (unit; this.allUnits) {
             Vector2 origin = {x: unit.xlocation*TILESIZE+this.offset.x, y: unit.ylocation*TILESIZE+this.offset.y-24};
-            DrawTextureV(this.sprites[unit.spriteID], origin, Colors.WHITE);
+            DrawTextureV(unit.sprite, origin, Colors.WHITE);
         }
     }
 
@@ -321,7 +322,7 @@ class Mission : MapTemp!VisibleTile
 
     void offsetMap(Rectangle mapView) { 
         Vector2 offsetOffset;
-        Vector2 SECornerSS = this.squareGrid[$-1][$-1].SECornerSS + this.offset;
+        Vector2 SECornerSS = this.grid[$-1][$-1].getDestination(this.offset);
         if (IsMouseButtonDown(MouseButton.MOUSE_BUTTON_RIGHT)) {
             offsetOffset = GetMouseDelta();
         } else {
@@ -346,8 +347,8 @@ class Mission : MapTemp!VisibleTile
         else if (offset.y + mapSizePx.y < mapView.height) offset.y = mapView.height - mapSizePx.y;
     }
 
-    Unit loadUnitFromJSON (JSONValue unitData, ref Texture*[string] spriteIndex, bool addToMap=true) {
-        Unit newUnit = new Unit(this, unitData);
+    VisibleUnit loadUnitFromJSON (JSONValue unitData, ref Texture*[string] spriteIndex, bool addToMap=true) {
+        VisibleUnit newUnit = new VisibleUnit(this, unitData);
         string spriteName = unitData["Sprite"].get!string;
         string spritePath = ("../sprites/units/" ~ spriteName).buildNormalizedPath;
         this.sprites ~= LoadTexture(spritePath.toStringz);

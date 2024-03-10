@@ -6,7 +6,7 @@ import std.json;
 import tile;
 import unit;
 
-class MapTemp (TileType : Tile) : Map {
+class MapTemp (TileType:Tile, UnitType:Unit) : Map {
     public string name;
     
     protected TileType[][] grid;
@@ -18,8 +18,8 @@ class MapTemp (TileType : Tile) : Map {
     public int turn;
 
     public Faction[] factions;
-    public Unit[] allUnits;
-    public Unit[][string] factionUnits;
+    public UnitType[] allUnits;
+    public UnitType[][string] factionUnits;
 
     this(string name) {
         this.name = name;
@@ -78,14 +78,16 @@ class MapTemp (TileType : Tile) : Map {
                     faction.isPlayer = false;
                 }
                 this.factionUnits[faction.name] = [];
-                faction.units = &this.factionUnits[faction.name];
+                if (this.fullyLoaded) foreach (unit; this.factionUnits[faction.name]) {
+                    faction.units ~= cast(Unit) unit;
+                }
                 this.factions ~= faction;
             }
             return true;
         } else {
             this.factions ~= Faction(name: "enemy");
             this.factionUnits["enemy"] = [];
-            this.factions[$-1].units = &this.factionUnits["enemy"];
+            foreach (unit; this.factionUnits["enemy"]) this.factions[$-1].units ~= cast(Unit) unit;
             return false;
         }
     }
@@ -203,7 +205,7 @@ enum GamePhase : ubyte {
 struct Faction
 {
     string name;
-    Unit[]* units;
+    Unit[] units;
     string[] allies;
     bool isPlayer;
 }

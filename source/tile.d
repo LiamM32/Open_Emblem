@@ -9,8 +9,8 @@ class Tile
 	protected bool allowFly = true;
 	public int stickyness = 0;
 
-	short xlocation;
-	short ylocation;
+	protected short xlocation;
+	protected short ylocation;
 
 	public bool startLocation = false;
 
@@ -36,5 +36,12 @@ class Tile
 	bool allowUnit(bool isFlyer) {
 		if (isFlyer) return this.allowFly;
 		else return this.allowStand;
+	}
+
+	int x() {
+		return cast(int) this.x;
+	}
+	int y() {
+		return cast(int) this.y;
 	}
 }

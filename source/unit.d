@@ -100,7 +100,7 @@ class Unit {
         this.Def = unitData.object["Def"].get!uint;
 
         if ("Weapon" in unitData.object) {
-            Weapon weapon = new Weapon(unitData.object["Weapon"]);
+            Weapon weapon = new Weapon(unitData.object["Weapon"]); //Come back here later to uncomment when the memory error is resolved.
             this.currentWeapon = &weapon;
             //this.inventory[0] = &weapon;
         }
