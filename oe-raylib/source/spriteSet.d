@@ -3,7 +3,7 @@ import std.string : toStringz;
 import raylib;
 import unit;
 
-class UnitSpriteLibrary
+class UnitSpriteSet
 {
     Image[8][4] attack_spear;
     Image[8][4] attack_bow;

@@ -1,4 +1,5 @@
 import raylib;
+import common;
 
 Vector2 rectDest(Rectangle rect, Vector2 offset, bool otherCorner = false) { //Determines where to place a rectangle by adding it's built-in x and y values to an offset.
     Vector2 location = offset;
@@ -9,10 +10,4 @@ Vector2 rectDest(Rectangle rect, Vector2 offset, bool otherCorner = false) { //D
         location.y += rect.height;
     }
     return location;
-}
-
-struct Vector2i
-{
-    int x;
-    int y;
 }

@@ -8,19 +8,21 @@ import std.algorithm.searching;
 import std.datetime.stopwatch;
 import raylib;
 
+import common;
 import map;
 import tile;
+import vtile;
 import unit;
 import vector_math;
 import ui;
 
 const int TILESIZE = 64;
 
-class Mission : Map
+class Mission : MapTemp!VisibleTile
 {
     Texture2D[] sprites;
     Texture2D gridMarker;
-    int[string] spriteIndex;
+    Texture2D*[string] spriteIndex;
     Unit selectedUnit;
     static Font font;
     GridTile[][] squareGrid;
@@ -56,15 +58,14 @@ class Mission : Map
         writeln("Starting to unload tile data");
         foreach (uint x, tileRow; mapData.object["tiles"].array) {
             foreach (uint y, tileData; tileRow.arrayNoRef) {
-                string tileName = "";
-                if ("name" in tileData) tileName = tileData["name"].get!string;
-                bool allowStand = tileData["canWalk"].get!bool;
-                bool allowFly = true;// tile["canFly"].get!bool;
-                int stickiness = tileData["stickiness"].get!int;
                 string spriteName = tileData["tile_sprite"].get!string;
-                ushort spriteID;
-                spriteID = loadNumberTexture(spriteName, spriteIndex, this.sprites);
-                Tile tile =  new Tile(tileName, allowStand, allowFly, stickiness, spriteID, spriteName);
+                string spritePath = ("../sprites/tiles/" ~ spriteName).buildNormalizedPath;
+                VisibleTile tile =  new VisibleTile(tileData, this.spriteIndex, x, y);
+                if (spriteName in this.spriteIndex) tile.sprite = spriteIndex["spriteName"];
+                else {
+                    this.sprites ~= LoadTexture(spritePath.toStringz);
+                    tile.sprite = & this.sprites[$-1];
+                }
                 GridTile gridTile = new GridTile(tile, x, y);
                 this.grid[x] ~= tile;
                 this.squareGrid[x] ~= gridTile;
@@ -80,8 +81,8 @@ class Mission : Map
             write("Finished loading row ");
             writeln(x);
         }
-        this.mapSizePx.x = cast(int)this.squareGrid.length * TILESIZE;
-        this.mapSizePx.y = cast(int)this.squareGrid[0].length * TILESIZE;
+        this.mapSizePx.x = cast(int)this.grid.length * TILESIZE;
+        this.mapSizePx.y = cast(int)this.grid[0].length * TILESIZE;
         writeln("Finished loading map " ~ this.name);
         {
             import std.conv;
@@ -241,9 +242,13 @@ class Mission : Map
         this.turnReset();
         
         Vector2 mousePosition = GetMousePosition();
-        Vector2 highlightedTile;
 
-        ubyte markerOpacity;
+        TextButton moveButton;
+        TextButton attackButton;
+        TextButton itemsButton;
+
+        enum Action:ubyte {Nothing, Move, Attack, Items};
+        Action playerAction = Action.Nothing;
 
         while(!WindowShouldClose())
         {
@@ -252,23 +257,22 @@ class Mission : Map
             BeginDrawing();
 
             drawTiles();
-            foreach (uint gridx, row; this.squareGrid) {
-                foreach (uint gridy, gridTile; row) {
-                    if (CheckCollisionPointRec(mousePosition, gridTile.getRect)) {
-                        if (gridTile.tile.occupant !is null) {
+            foreach (uint gridx, row; this.grid) {
+                foreach (uint gridy, tile; row) {
+                    if (CheckCollisionPointRec(mousePosition, tile.getRect)) {
+                        if (tile.occupant !is null) {
                             if (IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) {
-                                this.selectedUnit = gridTile.tile.occupant;
+                                this.selectedUnit = tile.occupant;
                                 this.selectedUnit.updateDistances();
                             }
                             if (this.selectedUnit !is null) {
                                 if (this.selectedUnit.getDistance(gridx, gridy).reachable) {
-                                    DrawRectangleRec(gridTile.getRect, Color(100, 100, 245, 32));
+                                    DrawRectangleRec(tile.getRect, Color(100, 100, 245, 32));
                                 }
                             }
                         }
-                        DrawRectangleRec(gridTile.getRect, Color(245, 245, 245, 32));
+                        DrawRectangleRec(tile.getRect, Color(245, 245, 245, 32));
                     }
-                    //DrawTextureEx(gridMarker, Vector2(gridx*TILESIZE, gridy*TILESIZE), 0.0, 1.0, Color(10,10,10, markerOpacity));
                 }
             }
             drawGridMarkers(missionTimer.peek.total!"msecs");
@@ -278,9 +282,9 @@ class Mission : Map
     }
 
     void drawTiles() {
-        foreach (uint x, row; this.squareGrid) {
-            foreach (uint y, gridTile; row) {
-                DrawTextureV(gridTile.sprite, gridTile.getOriginSS, Colors.WHITE);
+        foreach (uint x, row; this.grid) {
+            foreach (uint y, tile; row) {
+                DrawTextureV(*tile.sprite, tile.getDestination(offset), Colors.WHITE);
             }
         }
     }
@@ -342,81 +346,57 @@ class Mission : Map
         else if (offset.y + mapSizePx.y < mapView.height) offset.y = mapView.height - mapSizePx.y;
     }
 
-    Unit loadUnitFromJSON (JSONValue unitData, ref int[string] spriteIndex, bool addToMap=true) {
+    Unit loadUnitFromJSON (JSONValue unitData, ref Texture*[string] spriteIndex, bool addToMap=true) {
         Unit newUnit = new Unit(this, unitData);
         string spriteName = unitData["Sprite"].get!string;
-        if (spriteName in spriteIndex) {
-            newUnit.spriteID = spriteIndex[spriteName];
-        } else {
-            newUnit.spriteID = cast(uint)this.sprites.length;
-            assert(newUnit.spriteID > 0);
-            writeln("Player unit spriteID = "~to!string(newUnit.spriteID));
-            spriteIndex[spriteName] = newUnit.spriteID;
-            string spritePath = ("../sprites/units/" ~ spriteName).buildNormalizedPath;
-            if (!spritePath.endsWith(".png")) spritePath ~= ".png";
-            this.sprites ~= LoadTexture(spritePath.toStringz);
-        }
+        string spritePath = ("../sprites/units/" ~ spriteName).buildNormalizedPath;
+        this.sprites ~= LoadTexture(spritePath.toStringz);
+        spriteIndex[spriteName] = &this.sprites[$-1];
         if (addToMap) allUnits ~= newUnit;
         return newUnit;
     }
 
     class GridTile
     {
-        Tile tile;
-        private Vector2i origin;
+        VisibleTile tile;
         int x;
         int y;
 
-        this(Tile tile, int x, int y) {
+        this(VisibleTile tile, int x, int y) {
             this.tile = tile;
-            this.origin = Vector2i(x*TILESIZE, y*TILESIZE);
+            this.tile.origin = Vector2i(x*TILESIZE, y*TILESIZE);
             this.x = x;
             this.y = y;
         }
 
         Rectangle getRect() {
-            float x = this.origin.x + this.outer.offset.x;
-            float y = this.origin.y + this.outer.offset.y;
+            float x = this.tile.origin.x + this.outer.offset.x;
+            float y = this.tile.origin.y + this.outer.offset.y;
             return Rectangle(x:x, y:y, width:TILESIZE, height:TILESIZE);
         }
         Vector2i getOriginAbs() {
-            return this.origin;
+            return this.tile.origin;
         }
         Vector2 getOriginSS() {
-            float x = this.origin.x + this.outer.offset.x;
-            float y = this.origin.y + this.outer.offset.y;
+            float x = this.tile.origin.x + this.outer.offset.x;
+            float y = this.tile.origin.y + this.outer.offset.y;
             return Vector2(x, y);
         }
         Vector2 SECornerSS() {
-            float x = this.origin.x + TILESIZE + this.outer.offset.x;
-            float y = this.origin.y + TILESIZE + this.outer.offset.y;
+            float x = this.tile.origin.x + TILESIZE + this.outer.offset.x;
+            float y = this.tile.origin.y + TILESIZE + this.outer.offset.y;
             return Vector2(x, y);
         }
 
         Unit occupant() {
             return this.tile.occupant;
         }
-        int spriteID() {
-            return cast(int)this.tile.textureID;
-        }
         Texture2D sprite() {
-            return this.outer.sprites[this.tile.textureID];
+            return *this.tile.sprite;
         }
     }
 }
 
-ushort loadNumberTexture (string spriteName, ref int[string] spriteIndex, ref Texture2D[] sprites) {
-    ushort spriteID;
-    if (spriteName in spriteIndex) {
-        spriteID = cast(ushort)spriteIndex[spriteName];
-    } else {
-        string spritePath = ("../sprites/tiles/" ~ spriteName).buildNormalizedPath;
-        spriteID = cast(ushort)sprites.length;
-        sprites ~= LoadTexture(spritePath.toStringz);
-        spriteIndex[spriteName] = spriteID;
-    }
-    return spriteID;
-}
 
 unittest
 {

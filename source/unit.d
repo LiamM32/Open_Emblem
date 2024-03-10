@@ -4,6 +4,7 @@ import std.stdio;
 import std.conv;
 import std.json;
 
+import common;
 import map;
 import tile;
 import item;
@@ -31,6 +32,7 @@ class Unit {
     public Weapon* currentWeapon;
     private TileAccess[][] distances;
     private uint MvRemaining;
+    alias moveRemaining = MvRemaining;
     public bool hasActed;
     public int HP;
 
@@ -139,8 +141,15 @@ class Unit {
         writeln(this.map.getTile(x,y));
         this.map.getTile(x, y).setOccupant(this);
         
-        if (this.map.fullyLoaded) this.updateDistances(0);
-        write("Finished Unit.setLocation.");
+        if (runUpdateDistances && this.map.allTilesLoaded()) this.updateDistances(0);
+    }
+
+    bool move (int x, int y) {
+        if (this.distances[x][y].reachable) {
+            this.moveRemaining -= this.distances[x][y].distance;
+            this.setLocation(x, y, true);
+            return true;
+        } else return false;
     }
 
     bool attack (uint x, uint y) {
@@ -205,6 +214,16 @@ class Unit {
 
     TileAccess getDistance(int x, int y) {
         return this.distances[x][y];
+    }
+
+    Vector2i[] getReachable() {
+        Vector2i[] reachableCoordinates;
+        foreach (int x, row; this.distances) {
+            foreach (int y, tileAccess; row) {
+                reachableCoordinates ~= Vector2i(x, y);
+            }
+        }
+        return reachableCoordinates;
     }
 
     UnitStats getStats() {

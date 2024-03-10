@@ -6,9 +6,7 @@ import std.json;
 import tile;
 import unit;
 
-alias TileType = Tile;
-
-class Map {
+class MapTemp (TileType : Tile) : Map {
     public string name;
     
     protected TileType[][] grid;
@@ -27,17 +25,17 @@ class Map {
         this.name = name;
     }
     
-    this(ushort width, ushort length) {
+    /*this(ushort width, ushort length) {
         this.grid.length = width;
         foreach (x; 0 .. width-1) {
             this.grid[x].length = length;
             foreach (y; 0 .. length-1) {
-                this.grid[x][y] = new Tile();
+                this.grid[x][y] = new TileType();
             }
         }
-    this.gridWidth = width;
-    this.gridLength = length;
-    this.fullyLoaded = true;
+        this.gridWidth = width;
+        this.gridLength = length;
+        this.fullyLoaded = true;
     }
 
     this(JSONValue mapData) {
@@ -60,11 +58,11 @@ class Map {
                 int stickiness = tile["stickiness"].get!int;
                 string textureName = tile["tile_sprite"].get!string;
                 ushort textureID = this.findAssignTextureID(textureName);
-                this.grid[x][y] = new Tile(tileName, allowStand, allowFly, stickiness, textureID, textureName);
+                this.grid[x][y] = new TileType(tileName, allowStand, allowFly, stickiness, textureID, textureName);
             }
         }
         this.fullyLoaded = true;
-    }
+    }*/
 
     protected bool loadFactionsFromJSON (JSONValue mapData) {
         this.factions ~= Faction(name:"Player");
@@ -132,18 +130,30 @@ class Map {
     }
 
     Tile[][] getGrid() {
-        return this.grid;
+        Tile[][] tileGrid;
+        tileGrid.length = this.grid.length;
+        foreach(int x, row; this.grid) {
+            foreach(tile; row) {
+                tileGrid[x] ~= tile;
+            }
+        }
+        
+        return tileGrid;
+    }
+
+    bool allTilesLoaded() {
+        return this.fullyLoaded;
     }
 
     Unit getOccupant(int x, int y) {
         return this.grid[x][y].occupant;
     }
     
-    ushort getWidth() {
-        return cast(ushort)this.grid.length;
+    uint getWidth() {
+        return cast(uint)this.grid.length;
     }
-    ushort getLength() {
-        return cast(ushort)this.grid[0].length;
+    uint getLength() {
+        return cast(uint)this.grid[0].length;
     }
 
     string[] getTextureIndex() {
@@ -159,6 +169,15 @@ class Map {
         this.textureIndex ~= textureName;
         return cast(ushort)(this.textureIndex.length - 1);
     }
+}
+
+interface Map {
+    Tile getTile(int x, int y);
+    Tile[][] getGrid();
+    uint getWidth();
+    uint getLength();
+    Unit getOccupant(int x, int y);
+    bool allTilesLoaded();
 }
 
 ushort findAssignTextureID (string[] textureIndex, string textureName) {

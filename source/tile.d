@@ -5,9 +5,12 @@ import unit;
 class Tile
 {
 	public string tileName;
-	private bool allowStand = true;
-	private bool allowFly = true;
+	protected bool allowStand = true;
+	protected bool allowFly = true;
 	public int stickyness = 0;
+
+	short xlocation;
+	short ylocation;
 
 	public bool startLocation = false;
 
