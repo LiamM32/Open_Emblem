@@ -5,9 +5,12 @@ import unit;
 class Tile
 {
 	public string tileName;
-	private bool allowStand = true;
-	private bool allowFly = true;
+	protected bool allowStand = true;
+	protected bool allowFly = true;
 	public int stickyness = 0;
+
+	protected short xlocation;
+	protected short ylocation;
 
 	public bool startLocation = false;
 
@@ -33,5 +36,12 @@ class Tile
 	bool allowUnit(bool isFlyer) {
 		if (isFlyer) return this.allowFly;
 		else return this.allowStand;
+	}
+
+	int x() {
+		return cast(int) this.xlocation;
+	}
+	int y() {
+		return cast(int) this.ylocation;
 	}
 }
