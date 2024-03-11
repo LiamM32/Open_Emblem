@@ -5,39 +5,35 @@ import std.conv;
 import vunit;
 import unit;
 
-version (FontSet) const bool FONTSET = true;
-else const FONTSET = false;
+class FontSet {
+    private static FontSet defaultSet;
+    
+    Font serif;
+    Font serif_bold;
+    Font serif_italic;
+    Font sans;
+    Font sans_bold;
 
-version (FontSet) {
-    class UIElement
-    {
-        static FontSet fontSet;
-        Rectangle outline;
-
-        /*static*/ this() {
-            font.serif = LoadFont("../sprites/font/LiberationSerif-Regular.ttf");
-            font.serif_bold = LoadFont("../sprites/font/LiberationSerif-Bold.ttf");
-            font.serif_italic = LoadFont("../sprites/font/LiberationSerif-Italic.ttf");
-            font.serif = LoadFont("../sprites/font/LiberationSans-Regular.ttf");
-            font.serif_bold = LoadFont("../sprites/font/LiberationSans-Bold.ttf");
-        }
-
-        abstract void draw();
+    this() {
+        serif = LoadFont("../sprites/font/LiberationSerif-Regular.ttf");
+        serif_bold = LoadFont("../sprites/font/LiberationSerif-Bold.ttf");
+        serif_italic = LoadFont("../sprites/font/LiberationSerif-Italic.ttf");
+        sans = LoadFont("../sprites/font/LiberationSans-Regular.ttf");
+        sans_bold = LoadFont("../sprites/font/LiberationSans-Bold.ttf");
     }
 
-    class FontSet {
-        Font serif;
-        Font serif_bold;
-        Font serif_italic;
-        Font sans;
-        Font sans_bold;
+    static FontSet getDefault() {
+        if (defaultSet is null) defaultSet = new FontSet();
+        return defaultSet;
     }
 }
 
-class TextButton /*: UIElement*/
+
+class TextButton
 {
     Rectangle outline;
-    static Font font;
+    Font font;
+    Texture renderedText;
     Color buttonColour;
     Color fontColour;
     string text;
@@ -45,6 +41,20 @@ class TextButton /*: UIElement*/
     float lineSpacing = 1.0;
     Vector2 textAnchor;
 
+    version(FontSet) {
+        static FontSet fontSet;
+        
+        static this() {
+            fontSet = new FontSet;
+        }
+
+        this() {
+            font = fontSet.sans;
+
+            Image textImage = ImageTextEx(font, text.toStringz, fontSize*4, lineSpacing*4, fontColour);
+        }
+    }
+    
     this(Vector2 midpoint, string text, Color colour, int fontSize = 15) {
         Vector2 textDimensions = MeasureTextEx(TextButton.font, text.toStringz, cast(float)fontSize, lineSpacing);
         this.textAnchor.x = midpoint.x - textDimensions.x / 2;
@@ -57,6 +67,7 @@ class TextButton /*: UIElement*/
         TextButton.fontSize = fontSize;
         this.buttonColour = colour;
         TextButton.fontColour = Colors.RAYWHITE;
+        version (FontSet) this();
     }
     
     this(Rectangle outline, Font font, string text, int fontSize, Color buttonColour, bool whiteText) {
@@ -71,20 +82,24 @@ class TextButton /*: UIElement*/
         TextButton.fontSize = to!float(fontSize);
         if (whiteText) TextButton.fontColour = Colors.RAYWHITE;
         else TextButton.fontColour = Colors.BLACK;
+        this.font = FontSet.getDefault.sans_bold;
 
         Vector2 textDimensions = MeasureTextEx(TextButton.font, text.toStringz, to!float(fontSize), lineSpacing);
         this.textAnchor.x = outline.x + outline.width/2 - textDimensions.x/2;
         this.textAnchor.y = outline.y + outline.height/2 - textDimensions.y/2;
+
+        Image textImage = ImageTextEx(font, text.toStringz, fontSize*3, lineSpacing*3, fontColour);
+        ImageResize(&textImage, cast(int)textDimensions.x, cast(int)textDimensions.y);
+        this.renderedText = LoadTextureFromImage(textImage);
     }
 
-    version (FontSet) override void draw() {
-        DrawRectangleRec(outline, buttonColour);
-        DrawTextEx(font.sans_bold, this.text.toStringz, textAnchor, fontSize, lineSpacing, fontColour);
-    }
-    else void draw() {
+    void draw() {
         DrawRectangleRec(outline, buttonColour);
         //debug { if (font is null) throw new Exception("TextButton.draw: `font` is null"); }
-        DrawTextEx(font, this.text.toStringz, textAnchor, fontSize, lineSpacing, fontColour);
+        DrawTextureV(renderedText, textAnchor, Colors.WHITE);
+        //DrawTextEx(font, this.text.toStringz, textAnchor, fontSize, lineSpacing, fontColour);
+        if(CheckCollisionPointRec(GetMousePosition(), outline)) DrawRectangleRec(outline, Colours.Highlight);
+        DrawRectangleLinesEx(outline, 1.0f, Colors.BLACK);
     }
 
     debug {
@@ -142,7 +157,7 @@ class UnitInfoCard
         return this.unit.getStats;
     }
 
-    void draw(Texture2D[] sprites) {
+    void draw(Texture[] sprites) {
         DrawRectangleRec(outline, Color(r:250, b:230, g:245, a:200));
         DrawRectangleLinesEx(outline, 1.0f, Colors.BLACK);
         DrawTexture(this.unit.sprite, cast(int)outline.x+4, cast(int)outline.y+2, Colors.WHITE);
@@ -153,7 +168,7 @@ class UnitInfoCard
 
 enum Colours {
     SHADOW = Color(r:20, b:20, g:20, a:25),
-    CursorHighlight = Color(245, 245, 245, 32),
+    Highlight = Color(245, 245, 245, 32),
     Startpoint = Color(250, 250, 60, 35),
     Paper = Color(r:240, b:210, g:234, a:250),
     Crimson = Color(180, 7, 13, 255),

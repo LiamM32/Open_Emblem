@@ -180,11 +180,11 @@ class Unit {
     private bool updateDistances(uint distancePassed, int x, int y) {
         import tile;
         if (!this.map.getTile(x, y).allowUnit(this.isFlyer)) return false;
-        if (this.distances[x][y].measured && this.distances[x][y].distance <= distancePassed) return false;
-        else if (this.distances[x][y].distance <= this.MvRemaining) this.distances[x][y].reachable = true;
+        if (this.distances[x][y].measured && this.distances[x][y].distance <= distancePassed) return true;
         
         this.distances[x][y].distance = distancePassed;
         this.distances[x][y].measured = true;
+        if (distancePassed <= this.MvRemaining) this.distances[x][y].reachable = true;
         
         distancePassed += this.map.getTile(x, y).stickyness;
         
