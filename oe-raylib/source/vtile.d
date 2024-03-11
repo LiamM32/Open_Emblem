@@ -21,8 +21,7 @@ class VisibleTile : Tile//T!VisibleTile
         this.textureName = tileData["tile_sprite"].get!string;
         this.xlocation = cast(short) x;
         this.ylocation = cast(short) y;
-        this.origin.x = cast(int) x * TILEWIDTH;
-        this.origin.x = cast(int) y * TILEHEIGHT;
+        this.origin = Vector2i(x*TILEWIDTH, y*TILEHEIGHT);
         this.rect.x = cast(float) x * TILEWIDTH;
         this.rect.y = cast(float) y * TILEHEIGHT;
         this.rect.width = TILEWIDTH;
