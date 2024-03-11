@@ -17,7 +17,10 @@ import vunit;
 import vector_math;
 import ui;
 
-const int TILESIZE = 64;
+const int TILEWIDTH = 64;
+const int TILEHEIGHT = 64;
+
+const bool updateOnClick = false;
 
 class Mission : MapTemp!(VisibleTile, VisibleUnit)
 {
@@ -25,7 +28,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
     Texture2D gridMarker;
     Texture2D*[string] spriteIndex;
     Unit selectedUnit;
-    public static Font font;
+    static Font font;
     Vector2 offset;
     Rectangle mapView;
     Vector2i mapSizePx;
@@ -48,7 +51,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         import std.algorithm;
         import std.conv;
 
-        this.font = LoadFont("../sprites/font/LiberationSerif-Regular.ttf");
+        this.font = FontSet.getDefault.serif;
 
         super(mapData["map_name"].get!string);
         super.loadFactionsFromJSON(mapData);
@@ -79,8 +82,8 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
             write("Finished loading row ");
             writeln(x);
         }
-        this.mapSizePx.x = cast(int)this.grid.length * TILESIZE;
-        this.mapSizePx.y = cast(int)this.grid[0].length * TILESIZE;
+        this.mapSizePx.x = cast(int)this.grid.length * TILEWIDTH;
+        this.mapSizePx.y = cast(int)this.grid[0].length * TILEHEIGHT;
         writeln("Finished loading map " ~ this.name);
         {
             import std.conv;
@@ -120,15 +123,15 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
 
         TextButton startButton;
         {
-            Rectangle buttonOutline = {x:GetScreenWidth()-112, y:menuBox.y-16, width:80, height:32};
-            startButton = new TextButton(buttonOutline, this.font, "Start Mission", 16, Colours.Crimson, true);
+            Rectangle buttonOutline = {x:GetScreenWidth()-160, y:menuBox.y-16, width:160, height:32};
+            startButton = new TextButton(buttonOutline, "Start Mission", 24, Colours.Crimson, true);
         }
         
         missionTimer = StopWatch(AutoStart.yes);
         bool startButtonAvailable = false;
         Vector2 mousePosition = GetMousePosition();
         bool leftClick;
-        const Vector2 dragOffset = {x: -TILESIZE/2, y: -TILESIZE*0.75 };
+        const Vector2 dragOffset = {x: -TILEWIDTH/2, y: -TILEHEIGHT*0.75 };
         this.offset = Vector2(0.0, -96.0);
         this.mapView = Rectangle(0, 0, GetScreenWidth, GetScreenHeight-96);
         ushort unitsDeployed = 0;
@@ -189,14 +192,19 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                     if (CheckCollisionPointRec(mousePosition, menuBox)) deployed = false;
                     else deployed = (this.selectedUnit.currentTile !is null);
                     foreach (tile; startingPoints) if (CheckCollisionPointRec(mousePosition, tile.getRect(offset))) {
-                        Unit previousOccupant = tile.occupant;
-                        if (this.selectedUnit.currentTile !is null) this.selectedUnit.currentTile.occupant = null;
-                        tile.occupant = this.selectedUnit;
-                        this.selectedUnit.currentTile = tile;
+                        if (selectedUnit.currentTile == tile) {
+                            tile.occupant = selectedUnit;
+                            selectedUnit = null;
+                        } else {
+                            Unit previousOccupant = tile.occupant;
+                            if (this.selectedUnit.currentTile !is null) this.selectedUnit.currentTile.occupant = null;
+                            tile.occupant = this.selectedUnit;
+                            this.selectedUnit.currentTile = tile;
+                            writeln("Unit "~tile.occupant.name~" is being deployed.");
+                            if (previousOccupant !is null) previousOccupant.currentTile = null;
+                            this.selectedUnit = previousOccupant;
+                        }
                         deployed = true;
-                        writeln("Unit "~tile.occupant.name~" is being deployed.");
-                        if (previousOccupant !is null) previousOccupant.currentTile = null;
-                        this.selectedUnit = previousOccupant;
                         break;
                     }
                     if (!deployed) {
@@ -233,6 +241,15 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         this.startingPoints.length = 0;
 
         foreach (unit; this.allUnits) unit.verify();
+        debug {
+            foreach (uint x, row; this.grid) {
+                foreach (uint y, tile; row) {
+                    assert(tile.occupant is null || tile == tile.occupant.currentTile);
+                    assert(tile.x == x);
+                    assert(tile.y == y);
+                }
+            }
+        }
 
         this.nextTurn;
     }
@@ -250,16 +267,16 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         TextButton waitButton;
         TextButton backButton;
         {
-            Rectangle buttonOutline = {x:GetScreenWidth-112, y:GetScreenHeight-32, 80, 32};
-            backButton = new TextButton(buttonOutline, font, "Back", 16, Colours.Crimson, true);
+            Rectangle buttonOutline = {x:GetScreenWidth-96, y:GetScreenHeight-32, 80, 32};
+            backButton = new TextButton(buttonOutline, "Back", 20, Colours.Crimson, true);
             buttonOutline.y -= 48;
-            waitButton = new TextButton(buttonOutline, font, "Wait", 16, Colours.Crimson, true);
+            waitButton = new TextButton(buttonOutline, "Wait", 20, Colours.Crimson, true);
             buttonOutline.y -= 48;
-            moveButton = new TextButton(buttonOutline, font, "Move", 16, Colours.Crimson, true);
+            itemsButton = new TextButton(buttonOutline, "Items", 20, Colours.Crimson, true);
             buttonOutline.y -= 48;
-            attackButton = new TextButton(buttonOutline, font, "Attack", 16, Colours.Crimson, true);
+            attackButton = new TextButton(buttonOutline, "Attack", 20, Colours.Crimson, true);
             buttonOutline.y -= 48;
-            itemsButton = new TextButton(buttonOutline, font, "Items", 16, Colours.Crimson, true);
+            moveButton = new TextButton(buttonOutline, "Move", 20, Colours.Crimson, true);
         }
         assert(moveButton.buttonColour == Colours.Crimson, "Move button does not appear to be initialized.");
 
@@ -287,7 +304,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                         if (tile.occupant !is null) {
                             if (leftClick && playerAction == Action.Nothing) {
                                 this.selectedUnit = tile.occupant;
-                                this.selectedUnit.updateDistances();
+                                if (updateOnClick) this.selectedUnit.updateDistances();
                             }
                             if (this.selectedUnit !is null) {
                                 if (this.selectedUnit.getDistance(gridx, gridy).reachable) {
@@ -297,13 +314,14 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                         } else {
                             if(playerAction == Action.Move && leftClick && selectedUnit.getDistance(gridx,gridy).reachable) {
                                 selectedUnit.move(gridx, gridy);
+                                playerAction = Action.Nothing;
                             }
                         }
-                        if (onMap) DrawRectangleRec(tile.getRect(offset), Colours.CursorHighlight);
+                        if (onMap) DrawRectangleRec(tile.getRect(offset), Colours.Highlight);
                     }
                 }
             }
-            if (selectedUnit !is null) DrawRectangleRec((cast(VisibleTile)selectedUnit.currentTile).rect, Colours.CursorHighlight);
+            if (selectedUnit !is null) DrawRectangleRec((cast(VisibleTile)selectedUnit.currentTile).rect, Colours.Highlight);
             drawGridMarkers(missionTimer.peek.total!"msecs");
             drawUnits();
             if (selectedUnit !is null) {
@@ -359,7 +377,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
 
     void drawUnits() {
         foreach (unit; this.allUnits) {
-            Vector2 origin = {x: unit.xlocation*TILESIZE+this.offset.x, y: unit.ylocation*TILESIZE+this.offset.y-24};
+            Vector2 origin = {x: unit.xlocation*TILEWIDTH+this.offset.x, y: unit.ylocation*TILEHEIGHT+this.offset.y-24};
             DrawTextureV(unit.sprite, origin, Colors.WHITE);
         }
     }
