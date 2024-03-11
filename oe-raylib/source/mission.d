@@ -65,7 +65,6 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                     this.sprites ~= LoadTexture(spritePath.toStringz);
                     tile.sprite = & this.sprites[$-1];
                 }
-                GridTile gridTile = new GridTile(tile, x, y);
                 this.grid[x] ~= tile;
                 if ("Unit" in tileData) {
                     VisibleUnit occupyingUnit = new VisibleUnit(this, tileData["Unit"]);
@@ -410,46 +409,6 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         spriteIndex[spriteName] = &this.sprites[$-1];
         if (addToMap) allUnits ~= newUnit;
         return newUnit;
-    }
-
-    class GridTile
-    {
-        VisibleTile tile;
-        int x;
-        int y;
-
-        this(VisibleTile tile, int x, int y) {
-            this.tile = tile;
-            this.tile.origin = Vector2i(x*TILESIZE, y*TILESIZE);
-            this.x = x;
-            this.y = y;
-        }
-
-        Rectangle getRect() {
-            float x = this.tile.origin.x + this.outer.offset.x;
-            float y = this.tile.origin.y + this.outer.offset.y;
-            return Rectangle(x:x, y:y, width:TILESIZE, height:TILESIZE);
-        }
-        Vector2i getOriginAbs() {
-            return this.tile.origin;
-        }
-        Vector2 getOriginSS() {
-            float x = this.tile.origin.x + this.outer.offset.x;
-            float y = this.tile.origin.y + this.outer.offset.y;
-            return Vector2(x, y);
-        }
-        Vector2 SECornerSS() {
-            float x = this.tile.origin.x + TILESIZE + this.outer.offset.x;
-            float y = this.tile.origin.y + TILESIZE + this.outer.offset.y;
-            return Vector2(x, y);
-        }
-
-        Unit occupant() {
-            return this.tile.occupant;
-        }
-        Texture2D sprite() {
-            return *this.tile.sprite;
-        }
     }
 }
 
