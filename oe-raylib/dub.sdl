@@ -4,9 +4,26 @@ authors "Liam McGillivray"
 copyright "Copyright © 2024, Liam McGillivray"
 license "GPL-3.0-or-later"
 targetName "oe-raylib"
+targetType "executable"
 
 dependency "open_emblem" version="*" path="../"
-//dependency "fluid" version="~>0.6.3"
 dependency "raylib-d" version="*"
-dependency "fluid" version="*"
 libs "raylib"
+
+dependency "x11" version="*" platform="linux"
+libs "X11" "Xrandr" platform="linux"
+
+configuration "customgui" {
+    versions "customgui"
+    dependency "raylib-d" version="*"
+}
+
+configuration "raygui" {
+    versions "raygui"
+    dependency "raylib-d" version="*"
+}
+
+configuration "Fluid" { //This version does not work well.
+    versions "Fluid"
+    dependency "fluid" version="*"
+}

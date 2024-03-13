@@ -2,9 +2,7 @@ import std.json;
 import raylib;
 import tile;
 import common;
-
-const uint TILEWIDTH = 64;
-const uint TILEHEIGHT = 64;
+import constants;
 
 class VisibleTile : Tile//T!VisibleTile
 {

@@ -5,6 +5,7 @@ import std.json;
 
 import tile;
 import unit;
+import common;
 
 class MapTemp (TileType:Tile, UnitType:Unit) : Map {
     public string name;
@@ -127,6 +128,10 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
         }
     }
     
+    Tile getTile(Vector2i location) {
+        return this.grid[location.x][location.y];
+    }
+    
     Tile getTile(int x, int y) {
         return this.grid[x][y];
     }
@@ -174,6 +179,7 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
 }
 
 interface Map {
+    Tile getTile(Vector2i);
     Tile getTile(int x, int y);
     Tile[][] getGrid();
     uint getWidth();

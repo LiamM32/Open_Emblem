@@ -13,7 +13,7 @@ class Unit {
     public Map map;
     public int xlocation;
     public int ylocation;
-    public Direction direction;
+    public Direction facing;
     public Tile currentTile;
     public string faction;
     public uint spriteID;
@@ -30,7 +30,7 @@ class Unit {
     
     public Item[5]* inventory;
     public Weapon* currentWeapon;
-    private TileAccess[][] distances;
+    protected TileAccess[][] distances;
     private int MvRemaining;
     alias moveRemaining = MvRemaining;
     public bool hasActed;
@@ -128,7 +128,7 @@ class Unit {
                 break;
             }
         }
-        if (runUpdateDistances) this.updateDistances(0);
+        if (runUpdateDistances) this.updateDistances();
     }
     
     void setLocation(int x, int y, bool runUpdateDistances = true) { //runUpdateDistances should be removed due to map.fullyLoaded being used instead. However, removing it causes a segfault.
@@ -141,7 +141,7 @@ class Unit {
         writeln(this.map.getTile(x,y));
         this.map.getTile(x, y).setOccupant(this);
         
-        if (runUpdateDistances && this.map.allTilesLoaded()) this.updateDistances(0);
+        if (runUpdateDistances && this.map.allTilesLoaded()) this.updateDistances();
     }
 
     bool move (int x, int y) {
@@ -163,27 +163,29 @@ class Unit {
         return true;
     }
 
-    public void updateDistances(uint distancePassed = 0) {
+    public void updateDistances() {
         writeln("Unit "~this.name~" is on map "~to!string(this.map)~". Updating distances");
         foreach(int x, row; this.map.getGrid()) {
             foreach(int y, mapTile; row) {
                 this.distances[x][y].distance = 0;
                 this.distances[x][y].reachable = false;
                 this.distances[x][y].measured = false;
+                this.distances[x][y].tile = mapTile;
             }
         }
 
-        updateDistances(distancePassed, this.xlocation, this.ylocation);
+        updateDistances(0, this.xlocation, this.ylocation, this.facing);
         writeln("Finished updating distances for unit "~this.name);
     }
     
-    private bool updateDistances(uint distancePassed, int x, int y) {
+    private bool updateDistances(uint distancePassed, int x, int y, Direction wentIn) {
         import tile;
         if (!this.map.getTile(x, y).allowUnit(this.isFlyer)) return false;
         if (this.distances[x][y].measured && this.distances[x][y].distance <= distancePassed) return true;
         
         this.distances[x][y].distance = distancePassed;
         this.distances[x][y].measured = true;
+        this.distances[x][y].directionTo = wentIn;
         if (distancePassed <= this.MvRemaining) this.distances[x][y].reachable = true;
         
         distancePassed += this.map.getTile(x, y).stickyness;
@@ -193,16 +195,16 @@ class Unit {
             bool canNorth = false;
             bool canEast = false;
             bool canSouth = false;
-            if (x > 0) canWest = this.updateDistances(distancePassed +2, x-1, y);
-            if (y+1 < this.map.getLength()) canNorth = this.updateDistances(distancePassed +2, x, y+1);
-            if (x+1 < this.map.getWidth()) canEast = this.updateDistances(distancePassed +2, x+1, y);
-            if (y > 0) canSouth = this.updateDistances(distancePassed +2, x, y-1);
-            
+            if (x > 0) canWest = this.updateDistances(distancePassed +2, x-1, y, Direction.W);
+            if (y > 0) canNorth = this.updateDistances(distancePassed +2, x, y-1, Direction.N);
+            if (x+1 < this.map.getWidth()) canEast = this.updateDistances(distancePassed +2, x+1, y, Direction.E);
+            if (y+1 < this.map.getLength()) canSouth = this.updateDistances(distancePassed +2, x, y+1, Direction.S);
+
             if (distancePassed <= this.MvRemaining*lookahead -3) {
-                if (canWest && canSouth) this.updateDistances(distancePassed +3, x-1, y-1);
-                if (canWest && canNorth) this.updateDistances(distancePassed +3, x-1, y+1);
-                if (canEast && canNorth) this.updateDistances(distancePassed +3, x+1, y+1);
-                if (canEast && canSouth) this.updateDistances(distancePassed +3, x+1, y-1);
+                if (canWest && canNorth) this.updateDistances(distancePassed +3, x-1, y-1, Direction.NW);
+                if (canWest && canSouth) this.updateDistances(distancePassed +3, x-1, y+1, Direction.SW);
+                if (canEast && canSouth) this.updateDistances(distancePassed +3, x+1, y+1, Direction.SE);
+                if (canEast && canNorth) this.updateDistances(distancePassed +3, x+1, y-1, Direction.NE);
             }
         }
         return true;
@@ -213,6 +215,10 @@ class Unit {
         foreach(ref row; this.distances) row.length = this.map.getLength;
     }
 
+    TileAccess getDistance(Vector2i location) {
+        return this.distances[location.x][location.y];
+    }
+    
     TileAccess getDistance(int x, int y) {
         return this.distances[x][y];
     }
@@ -237,15 +243,30 @@ class Unit {
 
         return stats;
     }
+
+    TileAccess[] getPath(Vector2i destination) {
+        TileAccess[] path;
+        TileAccess thisTileAccess = this.distances[destination.x][destination.y];
+        Direction directionTo = thisTileAccess.directionTo;
+        if (map.getTile(destination)==this.currentTile) return [];
+        else path = getPath(directionOffset(directionTo.opposite, destination));
+        path ~= getDistance(destination);
+        return path;
+    }
+
+    TileAccess[] getPath(int x, int y) {
+        return this.getPath(Vector2i(x,y));
+    }
 }
 
 struct TileAccess
 {
+    Tile tile;
+    Direction directionTo; //The tile that the unit would be moving in when reaching this tile in the optimal path.
     uint distance;
     bool reachable = false;
     bool measured = false;
 }
-
 
 struct UnitStats {
     uint Mv;
@@ -253,17 +274,6 @@ struct UnitStats {
     uint MHP;
     uint Str;
     uint Def;
-}
-
-enum Direction : ubyte {
-    N = 0,
-    NE = 2,
-    E = 4,
-    SE = 6,
-    S = 8,
-    SW = 10,
-    W = 12,
-    NW = 14,
 }
 
 unittest //Currently incomplete test of attack damage
