@@ -19,19 +19,19 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
     public int turn;
 
     public Faction[] factions;
+    public Faction[string] factionsByName;
     public UnitType[] allUnits;
-    public UnitType[][string] factionUnits;
 
     this(string name) {
         this.name = name;
     }
     
-    /*this(ushort width, ushort length) {
+    static if (is(TileType==Tile)) this(ushort width, ushort length) {
         this.grid.length = width;
         foreach (x; 0 .. width-1) {
             this.grid[x].length = length;
             foreach (y; 0 .. length-1) {
-                this.grid[x][y] = new TileType();
+                this.grid[x][y] = new Tile();
             }
         }
         this.gridWidth = width;
@@ -39,7 +39,7 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
         this.fullyLoaded = true;
     }
 
-    this(JSONValue mapData) {
+    /*this(JSONValue mapData) {
         import std.algorithm;
         
         if ("factions" in mapData) this.loadFactionsFromJSON(mapData.object["factions"]);
@@ -66,29 +66,31 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
     }*/
 
     protected bool loadFactionsFromJSON (JSONValue mapData) {
-        this.factions ~= Faction(name:"Player");
+        import std.uni: toLower;
+        
+        this.factions ~= new Faction(name:"Player");
+        this.factionsByName["player"] = this.factions[$-1];
         if ("factions" in mapData) {
             foreach (factionData; mapData.object["factions"].array) {
                 Faction faction;
-                if (factionData.type == JSONType.string) faction = Faction(name:factionData.get!string, isPlayer:false);
+                if (factionData.type == JSONType.string) faction = new Faction(factionData.get!string, isPlayer:false);
                 else if (factionData.type == JSONType.object) { 
-                    faction.name = factionData.object["name"].get!string;
+                    faction = new Faction(factionData.object["name"].get!string);
                     if ("allies" in factionData) foreach (ally; factionData.object["allies"].array) {
                         faction.allies ~= ally.get!string;
                     }
                     faction.isPlayer = false;
                 }
-                this.factionUnits[faction.name] = [];
-                if (this.fullyLoaded) foreach (unit; this.factionUnits[faction.name]) {
-                    faction.units ~= cast(Unit) unit;
-                }
                 this.factions ~= faction;
+                this.factionsByName[faction.name] = faction;
             }
+            foreach(faction; this.factions) writeln("There is a faction called "~faction.name);
             return true;
         } else {
-            this.factions ~= Faction(name: "enemy");
-            this.factionUnits["enemy"] = [];
-            foreach (unit; this.factionUnits["enemy"]) this.factions[$-1].units ~= cast(Unit) unit;
+            this.factions ~= new Faction(name:"Player");
+            this.factionsByName["player"] = this.factions[$-1];
+            this.factions ~= new Faction(name: "Enemy");
+            this.factionsByName["enemy"] = this.factions[$-1];
             return false;
         }
     }
@@ -102,6 +104,37 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
                 destroy(tile);
             }
         }
+    }
+
+    debug bool verifyEverything() {
+        import std.conv;
+        import std.uni:toLower;
+        import std.algorithm.searching;
+        foreach (int x, row; this.grid) foreach (int y, tile; row) {
+            assert(tile.x == x, "Tile at position "~to!string(x)~", "~to!string(y)~" does not match it's internal reading of "~tile.x.to!string~", "~tile.y.to!string~".");
+            if (tile.occupant !is null) {
+                assert(tile.occupant.currentTile == tile, "Tile "~to!string(x)~", "~to!string(y)~" occupant set to unit "~tile.occupant.name~", but "~tile.occupant.name~"'s currentTile is not set to this tile.");
+                //TODO: Add line here to check if unit should be allowed on this tile.
+            }
+        }
+        foreach (faction; this.factions) {
+            assert(faction == factionsByName[faction.name.toLower]||faction == factionsByName[faction.name], "Faction "~faction.name~" is not in Map.factionsByName");
+            foreach (unit; faction.units) {
+                assert(unit.map == this, "Unit "~unit.name~" is missing reference to map.");
+                assert(canFind(this.allUnits, unit), "Unit "~unit.name~" not found in `allUnits`.");
+                assert(unit.faction == faction, "Unit "~unit.name~" is listed under faction "~faction.name~", but is missing reference to this faction.");
+                assert(unit == unit.currentTile.occupant, "Unit "~unit.name~"'s tile is set to "~to!string(unit.currentTile.x)~", "~to!string(unit.currentTile.y)~", but it's not mutual.");
+                assert(unit.xlocation == unit.currentTile.x, "Unit "~unit.name~"'s `xlocation` does not match it's `currentTile.x`.");
+                assert(unit.ylocation == unit.currentTile.y, "Unit "~unit.name~"'s `ylocation` does not match it's `currentTile.y`.");
+            }
+        }
+        foreach (unit; this.allUnits) {
+            assert(unit.map == this, "Unit "~unit.name~" is missing reference to map.");
+            assert(unit == unit.currentTile.occupant, "Unit "~unit.name~"'s tile is set to "~to!string(unit.currentTile.x)~", "~to!string(unit.currentTile.y)~", but it's not mutual.");
+            assert(unit.xlocation == unit.currentTile.x, "Unit "~unit.name~"'s `xlocation` does not match it's `currentTile.x`.");
+            assert(unit.ylocation == unit.currentTile.y, "Unit "~unit.name~"'s `ylocation` does not match it's `currentTile.y`.");
+        }
+        return true;
     }
 
     void nextTurn() {
@@ -123,7 +156,7 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
     }
 
     void turnReset(string faction) {
-        foreach(unit; this.factionUnits[faction]) {
+        foreach(unit; this.factionsByName[faction].units) {
             unit.turnReset;
         }
     }
@@ -208,28 +241,29 @@ enum GamePhase : ubyte {
     NonPlayerTurn,
 }
 
-struct Faction
+class Faction
 {
     string name;
     Unit[] units;
-    string[] allies;
+    string[] allies; //May later be replaced with an array of Faction objects.
     bool isPlayer;
-}
 
-unittest
-{
-    Map map = new Map(cast(ushort)8, cast(ushort)8);
-    assert(map.findAssignTextureID("grass") == 0);
-    assert(map.findAssignTextureID("water") == 1);
-    assert(map.findAssignTextureID("sand") == 2);
-    assert(map.findAssignTextureID("grass") == 0);
-    assert(findAssignTextureID(map.textureIndex, "stone") == 3);
+    this(string name, bool isPlayer=false) {
+        this.name = name;
+        this.isPlayer = isPlayer;
+    }
+
+    void turnReset() {
+        foreach (unit; this.units) {
+            unit.turnReset();
+        }
+    }
 }
 
 unittest
 {
     import std.algorithm.searching;
-    Map map = new Map(cast(ushort)16, cast(ushort)16);
+    MapTemp!(Tile,Unit) map = new MapTemp!(Tile,Unit)(cast(ushort)16, cast(ushort)16);
     UnitStats unitStats = {Mv:6, Str:24, Def:16, MHP:90};
     Unit unit = new Unit("Soldier", map, unitStats);
     assert (canFind(map.allUnits, unit));

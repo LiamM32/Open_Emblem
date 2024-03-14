@@ -5,6 +5,7 @@ copyright "Copyright © 2024, Liam McGillivray"
 license "GPL-3.0-or-later"
 targetName "oe-raylib"
 targetType "executable"
+mainSourceFile "source/app.d"
 
 dependency "open_emblem" version="*" path="../"
 dependency "raylib-d" version="*"

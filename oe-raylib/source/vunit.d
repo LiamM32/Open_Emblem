@@ -6,6 +6,7 @@ import spriteSet;
 import mission;
 import tile;
 import common;
+import map: Faction;
 
 class VisibleUnit : Unit
 {
@@ -14,7 +15,7 @@ class VisibleUnit : Unit
     Vector2 position;
     TileAccess[] path;
 
-    this(Mission map, JSONValue unitData) {
+    this(Mission map, JSONValue unitData, Faction faction = null) {
         import std.string:toStringz;
         import std.path : buildNormalizedPath;
         import std.algorithm.searching;

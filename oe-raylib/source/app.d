@@ -2,7 +2,9 @@ import std.stdio;
 import std.file;
 import std.json;
 import raylib;
+version (raygui) import raygui;
 //import fluid;
+import ui;
 
 import mission;
 
@@ -14,6 +16,7 @@ void main()
 	validateRaylibBinding();
 	InitWindow(screenWidth, screenHeight, "Open Emblem");
 	SetTargetFPS(getRefreshRate);
+    //version (raygui) GuiSetFont(FontSet.getDefault.sans_bold);
 
     scope(exit) CloseWindow();
 

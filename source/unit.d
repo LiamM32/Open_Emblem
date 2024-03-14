@@ -15,7 +15,7 @@ class Unit {
     public int ylocation;
     public Direction facing;
     public Tile currentTile;
-    public string faction;
+    public Faction faction;
     public uint spriteID;
     
     static ubyte lookahead = 1;
@@ -278,7 +278,7 @@ struct UnitStats {
 
 unittest //Currently incomplete test of attack damage
 {
-    Map map = new Map(cast(ushort)8, cast(ushort)8);
+    MapTemp!(Tile,Unit) map = new MapTemp!(Tile,Unit)(cast(ushort)8, cast(ushort)8);
     UnitStats stats;
     stats.Str = 24;
     stats.Def = 12;

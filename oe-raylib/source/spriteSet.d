@@ -2,6 +2,7 @@ import std.conv;
 import std.string : toStringz;
 import raylib;
 import unit;
+import common;
 
 class UnitSpriteSet
 {
@@ -28,7 +29,7 @@ class UnitSpriteSet
     }
 
     void drawFrame (Unit* unit, Vector2 destination, float timer, Action action) {
-        int direction = unit.direction / 2;
+        int direction = unit.facing.to!int;
         int frameNum;
         switch (action) {
             case Action.stretch:
@@ -63,5 +64,5 @@ enum Action : ubyte
 
 unittest
 {
-    UnitSpriteLibrary spriteLibrary = new UnitSpriteLibrary("../sprites/units/male_crimson-leather.png");
+    UnitSpriteSet spriteSet = new UnitSpriteSet("../sprites/units/male_crimson-leather.png");
 }

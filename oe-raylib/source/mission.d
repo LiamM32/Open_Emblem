@@ -51,6 +51,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         this.offset = Vector2(0.0f, 0.0f);
         import std.algorithm;
         import std.conv;
+        import std.uni: toLower;
 
         version (customgui) this.font = FontSet.getDefault.serif;
 
@@ -71,9 +72,15 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                 }
                 this.grid[x] ~= tile;
                 if ("Unit" in tileData) {
+                    JSONValue unitData = tileData["Unit"];
+                    Faction faction;
+                    if ("faction" in tileData["Unit"]) faction = factionsByName[unitData["faction"].get!string.toLower];
+                    else if ("enemy" in factionsByName) faction = factionsByName["enemy"];
+                    else faction = this.factions[1];
                     VisibleUnit occupyingUnit = new VisibleUnit(this, tileData["Unit"]);
+                    writeln("New unit "~occupyingUnit.name~" is part of the "~faction.name~" faction.");
                     this.allUnits ~= occupyingUnit;
-                    this.factionUnits[occupyingUnit.faction] ~= occupyingUnit;
+                    faction.units ~= occupyingUnit;
                     occupyingUnit.setLocation(x, y);
                 } else if ("Player Unit" in tileData) {
                     this.grid[x][y].startLocation = true;
@@ -92,6 +99,8 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         }
         this.gridMarker = LoadTexture("../sprites/grid-marker.png".toStringz);
         this.fullyLoaded = true;
+
+        this.turnReset;
     }
 
     void run() {
@@ -108,7 +117,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         JSONValue playerUnitsData = parseJSON(readText("Units.json"));
         writeln("Opened Units.json");
         foreach (uint k, unitData; playerUnitsData.array) {
-            VisibleUnit unit = loadUnitFromJSON(unitData, spriteIndex, false);
+            VisibleUnit unit = new VisibleUnit(this, unitData, factionsByName["player"]);//loadUnitFromJSON(unitData, spriteIndex, false);
             unit.map = this;
             availableUnits ~= unit;
             unitCards[unit] = new UnitInfoCard(unit, k*258, GetScreenHeight()-88);
@@ -251,7 +260,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         foreach (startTile; this.startingPoints) if (startTile.occupant !is null) {
             writeln("Looking at starting tile "~to!string(startTile.x())~", "~to!string(startTile.y()));
             this.allUnits ~= cast(VisibleUnit) startTile.occupant;
-            this.factionUnits["player"] ~= cast(VisibleUnit) startTile.occupant;
+            this.factionsByName["player"].units ~= startTile.occupant;
             startTile.occupant.setLocation(startTile.x(), startTile.y());
         }
         this.startingPoints.length = 0;
@@ -271,7 +280,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
     }
 
     void playerTurn() {
-        this.turnReset();
+        this.factionsByName["player"].turnReset();
         
         Vector2 mousePosition = GetMousePosition();
         bool onMap = true;
@@ -463,16 +472,6 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         else if (offset.x + mapSizePx.x < mapView.width) offset.x = mapView.width - mapSizePx.x;
         if (offset.y > mapView.y) offset.y = 0.0f;
         else if (offset.y + mapSizePx.y < mapView.height) offset.y = mapView.height - mapSizePx.y;
-    }
-
-    VisibleUnit loadUnitFromJSON (JSONValue unitData, ref Texture2D*[string] spriteIndex, bool addToMap=true) {
-        VisibleUnit newUnit = new VisibleUnit(this, unitData);
-        string spriteName = unitData["Sprite"].get!string;
-        string spritePath = ("../sprites/units/" ~ spriteName).buildNormalizedPath;
-        this.sprites ~= LoadTexture(spritePath.toStringz);
-        spriteIndex[spriteName] = &this.sprites[$-1];
-        if (addToMap) allUnits ~= newUnit;
-        return newUnit;
     }
 }
 
