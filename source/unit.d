@@ -107,10 +107,8 @@ class Unit {
     }
 
     ~this() {
-        /*if (this in map.allUnits) {
-
-        }*/
-        writeln("Unit "~this.name~"has been deleted.");
+        this.map.deleteUnit(this, false);
+        //writeln("Unit "~this.name~"has been deleted.");
     }
 
     void turnReset() {
@@ -278,6 +276,7 @@ struct UnitStats {
 
 unittest //Currently incomplete test of attack damage
 {
+    //debug writeln("Starting Unit attack unittest.");
     MapTemp!(Tile,Unit) map = new MapTemp!(Tile,Unit)(cast(ushort)8, cast(ushort)8);
     UnitStats stats;
     stats.Str = 24;
@@ -291,6 +290,7 @@ unittest //Currently incomplete test of attack damage
 
 unittest
 {
+    debug writeln("Starting UnitStats unittest.");
     JSONValue unitJSON;
     unitJSON["Name"] = "Soldier";
     unitJSON["Mv"] = 6;
@@ -304,4 +304,5 @@ unittest
     assert(stats.MHP == 120);
     assert(stats.Str == 24);
     assert(stats.Def == 18);
+    writeln("UnitStats unittest passed.");
 }

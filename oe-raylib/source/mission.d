@@ -65,10 +65,11 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                 string spriteName = tileData["tile_sprite"].get!string;
                 string spritePath = ("../sprites/tiles/" ~ spriteName).buildNormalizedPath;
                 VisibleTile tile =  new VisibleTile(tileData, this.spriteIndex, x, y);
-                if (spriteName in this.spriteIndex) tile.sprite = spriteIndex["spriteName"];
+                if (spriteName in this.spriteIndex) tile.sprite = spriteIndex[spriteName];
                 else {
                     this.sprites ~= LoadTexture(spritePath.toStringz);
-                    tile.sprite = & this.sprites[$-1];
+                    tile.sprite = &this.sprites[$-1];
+                    this.spriteIndex[spriteName] = &this.sprites[$-1];
                 }
                 this.grid[x] ~= tile;
                 if ("Unit" in tileData) {
@@ -87,15 +88,13 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                     startingPoints ~= tile;
                 }
             }
-            write("Finished loading row ");
-            writeln(x);
         }
         this.mapSizePx.x = cast(int)this.grid.length * TILEWIDTH;
         this.mapSizePx.y = cast(int)this.grid[0].length * TILEHEIGHT;
-        writeln("Finished loading map " ~ this.name);
+        debug writeln("Finished loading map " ~ this.name);
         {
             import std.conv;
-            writeln("Map is "~to!string(this.grid.length)~" by "~to!string(this.grid.length)~" tiles.");
+            debug writeln("Map is "~to!string(this.grid.length)~" by "~to!string(this.grid.length)~" tiles.");
         }
         this.gridMarker = LoadTexture("../sprites/grid-marker.png".toStringz);
         this.fullyLoaded = true;
@@ -115,14 +114,14 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         UnitInfoCard[Unit] unitCards;
         
         JSONValue playerUnitsData = parseJSON(readText("Units.json"));
-        writeln("Opened Units.json");
+        debug writeln("Opened Units.json");
         foreach (uint k, unitData; playerUnitsData.array) {
             VisibleUnit unit = new VisibleUnit(this, unitData, factionsByName["player"]);//loadUnitFromJSON(unitData, spriteIndex, false);
             unit.map = this;
             availableUnits ~= unit;
             unitCards[unit] = new UnitInfoCard(unit, k*258, GetScreenHeight()-88);
         }
-        writeln("There are "~to!string(unitCards.length)~" units available.");
+        debug writeln("There are "~to!string(unitCards.length)~" units available.");
 
         foreach (i, unit; this.allUnits) {
             if (unit !is null) writeln("mission.allUnits has a unit named "~unit.name);
@@ -478,11 +477,12 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
 
 unittest
 {
+    debug writeln("Starting Mission unittest");
     validateRaylibBinding();
+    InitWindow(400, 400, "Mission unittest");
     Mission mission = new Mission("../maps/test-map.json");
-    writeln("Mission unittest: Finished Mission constructor.");
     foreach (unit; mission.allUnits) {
-        assert(unit.map == mission);
-        if(mission != unit.map) writeln("These objects do not match"); 
+        assert(unit.map == mission, "Unit does not have it's `map` set to current Mission.");
     }
+    writeln("Mission unittest passed");
 }

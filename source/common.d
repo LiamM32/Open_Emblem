@@ -1,3 +1,4 @@
+version(unittest) import std.stdio;
 
 struct Vector2i //If being used with Godot-Dlang, may interfere with the struct of the same name.
 {
@@ -8,11 +9,36 @@ struct Vector2i //If being used with Godot-Dlang, may interfere with the struct 
         this.x += other.x;
         this.y += other.y;
     }
-
     void opOpAssign(string op:"-")(Vector2i other) {
         this.x -= other.x;
         this.y -= other.y;
     }
+
+    Vector2i opBinary(string op:"+")(Vector2i other) {
+        Vector2i result;
+        result.x = this.x + other.x;
+        result.y = this.y + other.y;
+        return result;
+    }
+    Vector2i opBinary(string op:"-")(Vector2i other) {
+        Vector2i result;
+        result.x = this.x - other.x;
+        result.y = this.y - other.y;
+        return result;
+     }
+}
+
+unittest
+{
+    writeln("Starting Vector2i unittest.");
+    Vector2i a = {1, 0};
+    a -= Vector2i(1, 1);
+    assert(a == Vector2i(0, -1));
+    
+    assert(Vector2i(2, 5)+Vector2i(3, -8) == Vector2i(5,-3));
+    assert(Vector2i(3, 6)-Vector2i(1, 2) == Vector2i(2, 4));
+
+    writeln("Vector2i unittest passed.");
 }
 
 struct Direction //One of 8 directions stored in 3 bits
@@ -20,57 +46,48 @@ struct Direction //One of 8 directions stored in 3 bits
     import std.conv;
     import std.traits: isNumeric;
     
-    bool[3] b;
+    private ubyte value;
 
-    static Direction N = Direction(b:[false,false,false]);
-    static Direction NE = Direction(b:[true,false,false]);
-    static Direction E = Direction(b:[false,true,false]);
-    static Direction SE = Direction(b:[true,true,false]);
-    static Direction S = Direction(b:[false,false,true]);
-    static Direction SW = Direction(b:[true,false,true]);
-    static Direction W = Direction(b:[false,true,true]);
-    static Direction NW = Direction(b:[true,true,true]);
+    static Direction N = Direction(0);
+    static Direction NE = Direction(1);
+    static Direction E = Direction(2);
+    static Direction SE = Direction(3);
+    static Direction S = Direction(4);
+    static Direction SW = Direction(5);
+    static Direction W = Direction(6);
+    static Direction NW = Direction(7);
 
-    ref Direction opUnary(string op)() if (op == "++" || op == "--") {
-        static if (op == "++") const bool up = true;
-        else const bool up = false;
-        
-        if (b[0]) {
-            if (b[1]) b[2] = !b[2];
-            b[1] = !b[1];
-        }
-        b[0] = !b[0];
+    ref Direction opUnary(string op:"++")() {
+        value++;
+        value &= 7;
+        return this;
+    }
+    ref Direction opUnary(string op:"--")() {
+        value--;
+        value &= 7;
         return this;
     }
 
-    void opOpAssign(string op)(int amount) if (op == "+" || op == "-") {
-        amount = amount%8;
-        if (amount > 0) for (uint i = 0; i < amount; i++) {
-            static if (op=="+") this++;
-            else this--;
-        } else for (uint i=0; i > amount; i--) {
-            static if (op=="+") this--;
-            else this++;
-        }
+    void opOpAssign(string op:"+")(int amount) {
+        value += amount;
+        value &= 7;
+    }
+    void opOpAssign(string op:"-")(int amount) {
+        value -= amount;
+        value %= 8;
     }
 
-    /*ref Direction opUnary(string op)(int amount) if (op=="+"||op=="-") {
-        if (amount > 0) for (uint i = 0; i < amount; i++) {
-            static if (op=="+") this++;
-            else this--;
-        } else for (uint i=0; i > amount; i--) {
-            static if (op=="+") this--;
-            else this++;
-        }
-        return this;
-    }*/
+    Direction opBinary(string op:"+")(int amount) {
+        ubyte resultvalue = cast(ubyte)(this.value + amount)%8;
+        return Direction(resultvalue);
+    }
+    Direction opBinary(string op:"-")(int amount) {
+        ubyte resultvalue = (this.value - amount)%8;
+        return Direction(resultvalue);
+    }
 
     T to(T)() const if(isNumeric!T) {
-        return cast(T)(b[0] + 2*b[1] + 4*b[2]);
-    }
-
-    T opCast(T)() if (isNumeric!T) {
-        return cast(T)(b[0] + 2*b[1] + 4*b[2]);
+        return cast(T)this.value;
     }
 
     T to(T)() const if(is(T==string)) {
@@ -86,16 +103,8 @@ struct Direction //One of 8 directions stored in 3 bits
         //else return ""; //This should never happen.
     }
 
-    bool[3] opCast() const {
-        return this.b;
-    }
-
     Direction opposite() const {
-        return Direction([b[0], b[1], !b[2]]);
-    }
-
-    bool diagonal() {
-        return b[0];
+        return Direction((this.value+8)%8);
     }
 
     int getAngle() {
@@ -127,13 +136,20 @@ Vector2i directionOffset(Direction direction, Vector2i destination=Vector2i(0,0)
 
 unittest
 {
+    import std.stdio;
+    debug writeln("Starting Direction unittest.");
     Direction direction = Direction.N;
-    direction++;
-    assert(direction == Direction.NE);
-    direction+=3;
-    assert(direction == Direction.S);
     direction--;
-    assert(direction == Direction.SE);
+    assert(direction == Direction.NW, "Direction opUnary \"--\" failed.");
+    direction+=3;
+    assert(direction == Direction.E, "Direction opOpAssign \"+=\" failed");
+    direction++;
+    assert(direction == Direction.SE, "Direction opUnary \"++\" failed.");
+    direction=Direction.S+2;
+    assert(direction == Direction.W);
+    direction--;
+    assert(direction == direction.SW);
     direction-=4;
-    assert(direction == Direction.NW);
+    assert(direction == Direction.NE);
+    writeln("Direction unittest passed.");
 }

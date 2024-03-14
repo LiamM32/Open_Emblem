@@ -2,10 +2,13 @@ module map;
 
 import std.stdio;
 import std.json;
+debug import std.conv;
 
 import tile;
 import unit;
 import common;
+
+alias PlainMap = MapTemp!(Tile, Unit);
 
 class MapTemp (TileType:Tile, UnitType:Unit) : Map {
     public string name;
@@ -28,9 +31,9 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
     
     static if (is(TileType==Tile)) this(ushort width, ushort length) {
         this.grid.length = width;
-        foreach (x; 0 .. width-1) {
+        foreach (x; 0 .. width) {
             this.grid[x].length = length;
-            foreach (y; 0 .. length-1) {
+            foreach (y; 0 .. length) {
                 this.grid[x][y] = new Tile();
             }
         }
@@ -196,6 +199,20 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
         return cast(uint)this.grid[0].length;
     }
 
+    bool deleteUnit(Unit unit, bool destroy=false) { //Always set `destroy` to false when calling from the Unit destructor, to avoid an infinite loop.
+        import std.algorithm.searching;
+        UnitType[] shiftedUnits = allUnits.find(unit);
+        ushort unitKey = cast(ushort)(allUnits.length - shiftedUnits.length);
+        if (shiftedUnits.length > 0) {
+            this.allUnits[$-shiftedUnits.length] = null;
+            for (ushort i=0; i<shiftedUnits.length-1; i++) {
+                this.allUnits[unitKey+i] = this.allUnits[unitKey+i+1];
+            }
+            this.allUnits.length--;
+            return true;
+        } else return false;
+    }
+
     string[] getTextureIndex() {
         return this.textureIndex;
     }
@@ -219,6 +236,7 @@ interface Map {
     uint getLength();
     Unit getOccupant(int x, int y);
     bool allTilesLoaded();
+    bool deleteUnit(Unit unit, bool destroy);
 }
 
 ushort findAssignTextureID (string[] textureIndex, string textureName) {
@@ -263,8 +281,17 @@ class Faction
 unittest
 {
     import std.algorithm.searching;
+    debug writeln("Starting Map unittest 1.");
+
     MapTemp!(Tile,Unit) map = new MapTemp!(Tile,Unit)(cast(ushort)16, cast(ushort)16);
-    UnitStats unitStats = {Mv:6, Str:24, Def:16, MHP:90};
-    Unit unit = new Unit("Soldier", map, unitStats);
-    assert (canFind(map.allUnits, unit));
+    UnitStats stats = {Mv:7, isFlyer:false, MHP:60, Str:22, Def:15};
+    Unit unitA = new Unit("Unit A", map, stats);
+    Unit unitB = new Unit("Unit B", map, stats);
+    Unit unitC = new Unit("Unit C", map, stats);
+    map.allUnits ~= unitA;
+    map.allUnits ~= unitB;
+    map.allUnits ~= unitC;
+    map.deleteUnit(unitB, true);
+    assert(map.allUnits == [unitA, unitC], "Map.deleteUnit function did not work as expected.");
+    writeln("Map unittest 1 passed.");
 }
