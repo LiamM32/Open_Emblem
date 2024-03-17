@@ -28,12 +28,13 @@ class Unit {
     public uint Def;
     public uint Exp;
     
-    public Item[5]* inventory;
-    public Weapon* currentWeapon;
+    public Item[5] inventory;
+    public Weapon currentWeapon;
     protected TileAccess[][] distances;
-    private int MvRemaining;
+    public int MvRemaining;
     alias moveRemaining = MvRemaining;
     public bool hasActed;
+    public bool finishedTurn;
     public int HP;
 
     this(string name, Map map, UnitStats stats, uint xlocation, uint ylocation) {
@@ -101,8 +102,8 @@ class Unit {
 
         if ("Weapon" in unitData.object) {
             Weapon weapon = new Weapon(unitData.object["Weapon"]); //Come back here later to uncomment when the memory error is resolved.
-            this.currentWeapon = &weapon;
-            //this.inventory[0] = &weapon;
+            this.currentWeapon = weapon;
+            this.inventory[0] = weapon;
         }
     }
 
@@ -113,6 +114,7 @@ class Unit {
 
     void turnReset() {
         this.hasActed = false;
+        this.finishedTurn = false;
         this.MvRemaining = this.Mv;
         updateDistances();
     }
@@ -152,27 +154,32 @@ class Unit {
     }
 
     bool attack (uint x, uint y) {
-        if (distances[x][y].distance > this.currentWeapon.range) return false;
+        if (currentWeapon !is null || !distances[x][y].attackableNow /*> this.currentWeapon.range*/) return false;
         if (this.map.getTile(x, y).occupant is null) return false;
 
         Unit opponent = this.map.getTile(x, y).occupant;
         opponent.HP -= (this.Str * this.Str)/(this.Str + opponent.Def);
 
+        this.hasActed = true;
+
         return true;
+    }
+
+    short getAttackDamage (Unit opponent, ushort distance=2) {
+        return cast(short)((this.Str * this.Str)/(this.Str + opponent.Def));
     }
 
     public void updateDistances() {
         writeln("Unit "~this.name~" is on map "~to!string(this.map)~". Updating distances");
         foreach(int x, row; this.map.getGrid()) {
             foreach(int y, mapTile; row) {
-                this.distances[x][y].distance = 0;
-                this.distances[x][y].reachable = false;
-                this.distances[x][y].measured = false;
+                this.distances[x][y].reset;
                 this.distances[x][y].tile = mapTile;
             }
         }
 
         updateDistances(0, this.xlocation, this.ylocation, this.facing);
+        setAttackable(Vector2i(xlocation, ylocation), true);
         writeln("Finished updating distances for unit "~this.name);
     }
     
@@ -208,13 +215,49 @@ class Unit {
         return true;
     }
 
+    private void setAttackable(Vector2i loc, bool now) { //This function will probably get replaced eventually with weapon-specific functions.
+        short range;
+        if (currentWeapon !is null) range = currentWeapon.range;
+        else range = 2;
+        setAttackable(range-2, Vector2i(loc.x, loc.y-1), Direction.N, now);
+        setAttackable(range-2, Vector2i(loc.x+1, loc.y), Direction.E, now);
+        setAttackable(range-2, Vector2i(loc.x, loc.y+1), Direction.S, now);
+        setAttackable(range-2, Vector2i(loc.x-1, loc.y), Direction.W, now);
+        if (range >= 3) {
+            setAttackable(range-3, Vector2i(loc.x+1, loc.y-1), Direction.NE, now);
+            setAttackable(range-3, Vector2i(loc.x+1, loc.y+1), Direction.SE, now);
+            setAttackable(range-3, Vector2i(loc.x-1, loc.y+1), Direction.SW, now);
+            setAttackable(range-3, Vector2i(loc.x-1, loc.y-1), Direction.NW, now);
+        }
+    }
+    
+    private bool setAttackable(int range, Vector2i loc, Direction direction, bool now) {
+        if (loc.x < 0 || loc.y < 0 || loc.x >= map.getWidth || loc.y >= map.getLength || range < 0) return false;
+        else if (map.getTile(loc.x, loc.y).allowUnit(true)) {
+            this.distances[loc.x][loc.y].attackableAfter = true;
+            if (now) this.distances[loc.x][loc.y].attackableNow = true;
+            if (!direction.diagonal) {
+                if (range >= 2 && direction.diagonal && setAttackable(range-2, offsetByDirection(direction, loc), direction, now) && range >= 3) {
+                    setAttackable(range-3, offsetByDirection(direction-1, loc), direction, now);
+                    setAttackable(range-3, offsetByDirection(direction+1, loc), direction, now);
+                }
+                
+            } else if (range >= 3 && (getDistance(offsetByDirection(direction-1, loc)).attackableAfter && getDistance(offsetByDirection(direction+1, loc)).attackableAfter)) {
+                setAttackable(range-3, offsetByDirection(direction, loc), direction, now);
+            }
+        } else return false;
+        return true;
+    }
+
     void setDistanceArraySize() {
         this.distances.length = this.map.getWidth;
         foreach(ref row; this.distances) row.length = this.map.getLength;
     }
 
     TileAccess getDistance(Vector2i location) {
-        return this.distances[location.x][location.y];
+        if (location.x <= 0 && location.y <= 0 && location.x >= map.getWidth && location.y >= map.getLength) {
+            return this.distances[location.x][location.y];
+        } else return TileAccess(tile:null, measured:true, reachable:false, attackableNow:false, attackableAfter:false);
     }
     
     TileAccess getDistance(int x, int y) {
@@ -231,6 +274,10 @@ class Unit {
         return reachableCoordinates;
     }
 
+    bool canMove() {
+        return this.MvRemaining >= 2;
+    }
+
     UnitStats getStats() {
         UnitStats stats;
         stats.Mv = this.Mv;
@@ -244,10 +291,11 @@ class Unit {
 
     TileAccess[] getPath(Vector2i destination) {
         TileAccess[] path;
+        debug writeln(destination);
         TileAccess thisTileAccess = this.distances[destination.x][destination.y];
         Direction directionTo = thisTileAccess.directionTo;
         if (map.getTile(destination)==this.currentTile) return [];
-        else path = getPath(directionOffset(directionTo.opposite, destination));
+        else path = getPath(offsetByDirection(directionTo.opposite, destination));
         path ~= getDistance(destination);
         return path;
     }
@@ -261,9 +309,18 @@ struct TileAccess
 {
     Tile tile;
     Direction directionTo; //The tile that the unit would be moving in when reaching this tile in the optimal path.
-    uint distance;
-    bool reachable = false;
+    uint distance = -1;
     bool measured = false;
+    bool reachable = false;
+    bool attackableNow = false;
+    bool attackableAfter = false;
+
+    void reset() {
+        measured = false;
+        reachable = false;
+        attackableNow = false;
+        attackableAfter = false;
+    }
 }
 
 struct UnitStats {

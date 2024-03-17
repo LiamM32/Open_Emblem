@@ -16,7 +16,7 @@ void main()
 	validateRaylibBinding();
 	InitWindow(screenWidth, screenHeight, "Open Emblem");
 	SetTargetFPS(getRefreshRate);
-    //version (raygui) GuiSetFont(FontSet.getDefault.sans_bold);
+    version (raygui) setRayGuiStyle();
 
     scope(exit) CloseWindow();
 
@@ -44,4 +44,16 @@ uint getRefreshRate() {
     } else version (OSX) {
         return 60;
     }
+}
+
+version (raygui) void setRayGuiStyle() {
+    import raygui;
+    import std.string:toStringz;
+    auto fontPath = "../sprites/font/LiberationSans-Bold.ttf".toStringz;
+    int zero = 0;
+    GuiLoadStyle("../sprites/paperstyle.txt.rgs".toStringz);
+    GuiSetFont(FontSet.getDefault.sans_bold);
+    Font font = LoadFontEx(fontPath, 16, &zero, 0);
+    GuiSetStyle(_GuiControl.DEFAULT, _GuiControlProperty.BORDER_WIDTH, 1);
+    GuiSetStyle(_GuiControl.DEFAULT, _GuiDefaultProperty.TEXT_SIZE, 15);
 }

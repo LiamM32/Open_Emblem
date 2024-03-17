@@ -48,14 +48,14 @@ struct Direction //One of 8 directions stored in 3 bits
     
     private ubyte value;
 
-    static Direction N = Direction(0);
-    static Direction NE = Direction(1);
-    static Direction E = Direction(2);
-    static Direction SE = Direction(3);
-    static Direction S = Direction(4);
-    static Direction SW = Direction(5);
-    static Direction W = Direction(6);
-    static Direction NW = Direction(7);
+    enum Direction N = Direction(0);
+    enum Direction NE = Direction(1);
+    enum Direction E = Direction(2);
+    enum Direction SE = Direction(3);
+    enum Direction S = Direction(4);
+    enum Direction SW = Direction(5);
+    enum Direction W = Direction(6);
+    enum Direction NW = Direction(7);
 
     ref Direction opUnary(string op:"++")() {
         value++;
@@ -82,8 +82,12 @@ struct Direction //One of 8 directions stored in 3 bits
         return Direction(resultvalue);
     }
     Direction opBinary(string op:"-")(int amount) {
-        ubyte resultvalue = (this.value - amount)%8;
+        ubyte resultvalue = cast(ubyte)(this.value - amount)%8;
         return Direction(resultvalue);
+    }
+
+    T opCast(T)() const if (isNumeric!T) {
+        return this.value;
     }
 
     T to(T)() const if(isNumeric!T) {
@@ -104,7 +108,11 @@ struct Direction //One of 8 directions stored in 3 bits
     }
 
     Direction opposite() const {
-        return Direction((this.value+8)%8);
+        return Direction((this.value+4)%8);
+    }
+
+    bool diagonal() {
+        return value&1;
     }
 
     int getAngle() {
@@ -120,18 +128,27 @@ struct Direction //One of 8 directions stored in 3 bits
     }
 }
 
-Vector2i directionOffset(Direction direction, Vector2i destination=Vector2i(0,0)) {
+Vector2i offsetByDirection(Direction direction, Vector2i location=Vector2i(0,0)) {
     import std.math.algebraic;
-    if (direction==Direction.N) destination += Vector2i(0, -1);
-    else if (direction==Direction.NE) destination += Vector2i(1, -1);
-    else if (direction==Direction.E) destination += Vector2i(1, 0);
-    else if (direction==Direction.SE) destination += Vector2i(1, 1);
-    else if (direction==Direction.S) destination += Vector2i(0, 1);
-    else if (direction==Direction.SW) destination += Vector2i(-1, 1);
-    else if (direction==Direction.W) destination += Vector2i(-1, 0);
-    else if (direction==Direction.NW) destination += Vector2i(1, 1);
-    else throw new Exception("common.directionOffset: direction has a value that should be impossible.");
-    return destination;
+    final switch (cast(ubyte)direction) {
+        case cast(ubyte)Direction.N: location += Vector2i(0, -1); break;
+        case cast(ubyte)Direction.NE: location += Vector2i(1, -1); break;
+        case cast(ubyte)Direction.E: location += Vector2i(1, 0); break;
+        case cast(ubyte)Direction.SE: location += Vector2i(1, 1); break;
+        case cast(ubyte)Direction.S: location += Vector2i(0, 1); break;
+        case cast(ubyte)Direction.SW: location += Vector2i(-1, 1); break;
+        case cast(ubyte)Direction.W: location += Vector2i(-1, 0); break;
+        case cast(ubyte)Direction.NW: location += Vector2i(-1, -1); break;
+    }
+    return location;
+}
+
+uint measureDistance(Vector2i a, Vector2i b) {
+    import std.math.algebraic;
+    import std.algorithm;
+    auto xdiff = abs(a.x - b.x);
+    auto ydiff = abs(a.y = b.y);
+    return xdiff + ydiff + min(xdiff, ydiff);
 }
 
 unittest
@@ -146,10 +163,60 @@ unittest
     direction++;
     assert(direction == Direction.SE, "Direction opUnary \"++\" failed.");
     direction=Direction.S+2;
-    assert(direction == Direction.W);
-    direction--;
-    assert(direction == direction.SW);
+    assert(direction == Direction.W, "Direction opBinary \"+\" failed.");
+    assert(direction.diagonal == false, "Direction.diagonal function false positive.");
+    direction=direction-1;
+    assert(direction == direction.SW, "Direction opBinary \"-\" failed.");
     direction-=4;
-    assert(direction == Direction.NE);
+    assert(direction == Direction.NE, "Direction opOpAssign \"-=\" failed");
+    assert(direction.diagonal, "Direction.diagonal function false negative.");
     writeln("Direction unittest passed.");
+}
+
+unittest
+{
+    import std.stdio;
+    debug writeln("Starting offsetByDirection unittest.");
+    Vector2i position = {5, 7};
+    assert(offsetByDirection(Direction.N, position) == Vector2i(5, 6));
+    assert(offsetByDirection(Direction.SE, position) == Vector2i(6, 8));
+    assert(offsetByDirection(Direction.SW, position) == Vector2i(4, 8));
+    position.x = 2;
+    position.y = 8;
+    position = offsetByDirection(Direction.NW+4, position);
+    assert(position == Vector2i(3, 9));
+    writeln("offsetByDirection unittest passed.");
+}
+
+T[] cleanupArray(T)(T[] array) {
+    int skip = 0;
+    for (int k=0; k < array.length-skip; k++) {
+        if (array[k] is null) skip++;
+        array[k] = array[k+skip];
+    }
+    array.length -= skip;
+    return array;
+}
+
+unittest {
+    writeln("Starting cleanupArray unittest.");
+    import unit;
+
+    UnitStats stats = {Mv:8, isFlyer:false, MHP:60, Str:24, Def:14};
+    Unit[] units;
+    units ~= new Unit("Ron A", stats);
+    units ~= new Unit("Harry B", stats);
+    units ~= new Unit("Linda C", stats);
+    units ~= new Unit("Jamie D", stats);
+
+    assert(units[0].name == "Ron A");
+    assert(units[1].name == "Harry B");
+    assert(units[2].name == "Linda C");
+    assert(units[3].name == "Jamie D");
+
+    destroy(units[2]);
+    units = cleanupArray(units);
+    assert(units.length == 3, "`cleanupArray` function failed to delete the correct number.");
+    assert(units[2].name == "Jamie D");
+    writeln("`cleanupArray` unittest passed.");
 }

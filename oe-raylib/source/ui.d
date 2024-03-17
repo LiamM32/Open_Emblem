@@ -1,9 +1,11 @@
 import raylib;
+version (raygui) import raygui;
 import std.string: toStringz;
 import std.algorithm.comparison;
 import std.conv;
 import vunit;
 import unit;
+import common;
 
 class FontSet {
     private static FontSet defaultSet;
@@ -81,6 +83,18 @@ class TextButton
         DrawRectangleLinesEx(outline, 1.0f, fontColour);
     }
 
+    bool button(ref bool hover) {
+        DrawRectangleRec(outline, buttonColour);
+        DrawTextEx(font, this.text.toStringz, textAnchor, fontSize, lineSpacing, fontColour);
+        if(CheckCollisionPointRec(GetMousePosition(), outline)) {
+            DrawRectangleRec(outline, Colours.Highlight);
+            hover = true;
+            if (IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) return true;
+        }
+        DrawRectangleLinesEx(outline, 1.0f, fontColour);
+        return false;
+    }
+
     debug {
         void dump() {
             import std.stdio;
@@ -153,6 +167,55 @@ class UnitInfoCard
         //DrawText(this.infotext.toStringz, x+80, y+20, 11, Colors.BLACK);
         DrawTextEx(font, infotext.toStringz, Vector2(x+80, y+20), 12.0f, 1.0f, Colors.BLACK);
         SetTextureFilter(font.texture, TextureFilter.TEXTURE_FILTER_BILINEAR);
+    }
+}
+
+class MenuList (ArrayType)
+{
+    Rectangle[] rects;
+    string[] optionNames;
+    version (raygui) string optionString;
+    Vector2i origin;
+
+    this(int x, int y) {
+        this.origin.x = x;
+        this.origin.y = y;
+    }
+
+    this(int x, int y, ArrayType[] array) {
+        this.origin.x = x;
+        this.origin.y = y;
+        reset(array);
+    }
+
+    void reset(ArrayType[] array) {
+        import std.stdio;
+        if (array[0] is null) writeln("Array is empty"); return;
+        rects.length = array.length;
+        optionNames.length = array.length;
+        version (raygui) optionString = "";
+        foreach (i, object; array) {
+            version (customgui) optionNames[i] = object.name;
+            version (raygui) optionString ~= ";"~object.name;
+            rects[i] = Rectangle(x:origin.x, y:origin.y+i*24, width:96, height:24);
+        }
+    }
+
+    bool draw(ref ubyte selected) {
+        foreach (i, optionRect; rects) {
+            version (customgui) {
+                DrawRectangleRec(optionRect, Colours.Paper);
+                if (IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition, optionRect)) {
+                    selected = cast(ubyte) i;
+                    return true;
+                }
+            }
+            version (raygui) if (GuiButton(optionRect, optionNames[i].toStringz)) {
+                selected = cast(ubyte) i;
+                return true;
+            }
+        }
+        return false;
     }
 }
 
