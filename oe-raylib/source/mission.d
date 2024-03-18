@@ -13,6 +13,7 @@ version (raygui) import raygui;
 
 import common;
 import map;
+import faction;
 import tile;
 import vtile;
 import unit;

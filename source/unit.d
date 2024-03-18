@@ -8,6 +8,7 @@ import common;
 import map;
 import tile;
 import item;
+import faction;
 
 class Unit {
     public Map map;
@@ -194,7 +195,8 @@ class Unit {
         this.distances[x][y].directionTo = wentIn;
         if (distancePassed <= this.MvRemaining) this.distances[x][y].reachable = true;
         
-        distancePassed += this.map.getTile(x, y).stickyness;
+        auto stickyness = this.map.getTile(x, y).stickyness;
+        distancePassed += stickyness;
         
         if (distancePassed <= this.MvRemaining*lookahead -2) {
             bool canWest = false;
@@ -206,6 +208,7 @@ class Unit {
             if (x+1 < this.map.getWidth()) canEast = this.updateDistances(distancePassed +2, x+1, y, Direction.E);
             if (y+1 < this.map.getLength()) canSouth = this.updateDistances(distancePassed +2, x, y+1, Direction.S);
 
+            distancePassed += stickyness>>1;
             if (distancePassed <= this.MvRemaining*lookahead -3) {
                 if (canWest && canNorth) this.updateDistances(distancePassed +3, x-1, y-1, Direction.NW);
                 if (canWest && canSouth) this.updateDistances(distancePassed +3, x-1, y+1, Direction.SW);
@@ -313,7 +316,7 @@ class Unit {
         TileAccess thisTileAccess = this.distances[destination.x][destination.y];
         Direction directionTo = thisTileAccess.directionTo;
         if (map.getTile(destination)==this.currentTile) return [];
-        else path = getPath(offsetByDirection(directionTo.opposite, destination));
+        else path = getPath(offsetByDirection(directionTo+4, destination));
         path ~= getDistance(destination);
         return path;
     }

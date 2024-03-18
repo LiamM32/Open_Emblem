@@ -7,6 +7,7 @@ debug import std.conv;
 import tile;
 import unit;
 import common;
+import faction;
 
 alias PlainMap = MapTemp!(Tile, Unit);
 
@@ -39,6 +40,17 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
         }
         this.gridWidth = width;
         this.gridLength = length;
+        this.fullyLoaded = true;
+    }
+
+    this(string name, TileType[][] grid) {
+        this.name = name;
+        this.grid = grid;
+        this.gridWidth = cast(ushort)grid.length;
+        foreach (row; grid) {
+            assert(row.length == grid[0].length);
+        }
+        this.gridLength = cast(ushort)grid[0].length;
         this.fullyLoaded = true;
     }
 
@@ -80,7 +92,10 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
                 else if (factionData.type == JSONType.object) { 
                     faction = new Faction(factionData.object["name"].get!string);
                     if ("allies" in factionData) foreach (ally; factionData.object["allies"].array) {
-                        faction.allies ~= ally.get!string;
+                        faction.allyNames ~= ally.get!string;
+                    }
+                    if ("enemies" in factionData) foreach (enemy; factionData.object["enemies"].array) {
+                        faction.enemyNames ~= enemy.get!string;
                     }
                     faction.isPlayer = false;
                 }
@@ -96,6 +111,8 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
             this.factionsByName["enemy"] = this.factions[$-1];
             return false;
         }
+
+        foreach (faction; this.factions) faction.setAlliesEnemies(factionsByName);
     }
 
     ~this() {
@@ -271,24 +288,6 @@ enum GamePhase : ubyte {
     NonPlayerTurn,
 }
 
-class Faction
-{
-    string name;
-    Unit[] units;
-    string[] allies; //May later be replaced with an array of Faction objects.
-    bool isPlayer;
-
-    this(string name, bool isPlayer=false) {
-        this.name = name;
-        this.isPlayer = isPlayer;
-    }
-
-    void turnReset() {
-        foreach (unit; this.units) {
-            unit.turnReset();
-        }
-    }
-}
 
 unittest
 {

@@ -30,6 +30,13 @@ class Tile
 		this.textureName = textureName;
 	}
 
+	this(bool allowStand=true, bool allowFly=true, bool allowShoot=true, int stickyness=0) {
+		this.allowStand = allowStand;
+		this.allowFly = allowFly;
+		this.allowShoot = allowShoot;
+		this.stickyness = stickyness;
+	}
+
 	void setOccupant(Unit occupant) {
 		this.occupant = occupant;
 	}

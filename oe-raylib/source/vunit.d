@@ -6,7 +6,7 @@ import spriteSet;
 import mission;
 import tile;
 import common;
-import map: Faction;
+import faction;
 
 class VisibleUnit : Unit
 {

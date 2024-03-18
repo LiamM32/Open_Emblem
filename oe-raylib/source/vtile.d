@@ -15,6 +15,8 @@ class VisibleTile : Tile//T!VisibleTile
         if ("name" in tileData) tileName = tileData["name"].get!string;
         this.allowStand = tileData["canWalk"].get!bool;
         if ("canFly" in tileData) this.allowFly = tileData["canFly"].get!bool;
+        if ("canShoot" in tileData) this.allowShoot = tileData["canShoot"].get!bool;
+        else this.allowShoot = this.allowStand;
         this.stickyness = tileData["stickiness"].get!int;
         this.textureName = tileData["tile_sprite"].get!string;
         this.xlocation = cast(short) x;
