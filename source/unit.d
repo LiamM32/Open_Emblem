@@ -145,8 +145,9 @@ class Unit {
     }
 
     bool move (int x, int y) {
-        if (this.distances[x][y].reachable) {
+        if (this.distances[x][y].reachable && map.getTile(x,y).occupant is null) {
             this.moveRemaining -= this.distances[x][y].distance;
+            this.currentTile.occupant = null;
             this.setLocation(x, y, true);
             writeln(this.name~" has "~to!string(MvRemaining)~" Mv remaining.");
             return true;
@@ -185,7 +186,7 @@ class Unit {
     
     private bool updateDistances(uint distancePassed, int x, int y, Direction wentIn) {
         import tile;
-        if (!this.map.getTile(x, y).allowUnit(this.isFlyer)) return false;
+        if (!this.map.getTile(x, y).allowUnit(this.isFlyer) && distancePassed > 0) return false;
         if (this.distances[x][y].measured && this.distances[x][y].distance <= distancePassed) return true;
         
         this.distances[x][y].distance = distancePassed;
@@ -215,38 +216,54 @@ class Unit {
         return true;
     }
 
-    private void setAttackable(Vector2i loc, bool now) { //This function will probably get replaced eventually with weapon-specific functions.
+    /*void setAttackableNew(int range) {
+        import std.algorithm.comparison;
+        byte maxStepx = min()
+        byte maxStepy;
+        /*foreach (xoffset; -(range>>1) .. (range>>1)) foreach (yoffset; -(range>>1) .. (range>>1)) if (measureDistance(Vector2(xoffset,yoffset))*2<range) {
+            a
+        }*//*
+        foreach (stepSize; 1 .. (range>>1)-1);
+
+        void scan(Vector2i origin, Direction direction, bool forNow){
+            Vector2i offset = offsetByDirection(direction);
+            Vector2i trunkCurrent;
+            for(st=1; st<=range>>1; st++) { // Scanning in one straight direction from origin.
+                trunkCurrent = origin + offset*st;
+                if (!map.getTile(trunkCurrent).allowShoot) break; // Break if an obstructing tile is reached.
+                this.distances[trunkCurrent.x][trunkCurrent.y].attackableAfter = true;
+                if (forNow) this.distances[trunkCurrent.x][trunkCurrent.y].attackableNow = true;
+                if (st <= range>>2) {
+                    Vector2i current = trunkCurrent;
+                    for(tb=1; st*2+tb*3<=range) { // Start scanning at a slightly different angle.
+                        current = offsetByDirection(direction-1, current);
+                        for(sb=0; sb<st>>1; sb++) if (map.getTile(current) is null || !map.getTile(current).allowShoot) break;
+                        this.distances[current.x][current.y].attackableAfter = true;
+                        if (forNow) this.distances[current.x][current.y].attackableNow = true;
+                        for(sb=0; sb+1<st>>1; sb++) if (map.getTile(current) is null || !map.getTile(current).allowShoot) break;
+                    }
+                }
+            }
+        }
+    }*/
+
+    private void setAttackable(Vector2i loc, bool forNow) { //This function will probably get replaced eventually with weapon-specific functions.
         short range;
         if (currentWeapon !is null) range = currentWeapon.range;
         else range = 2;
-        setAttackable(range-2, Vector2i(loc.x, loc.y-1), Direction.N, now);
-        setAttackable(range-2, Vector2i(loc.x+1, loc.y), Direction.E, now);
-        setAttackable(range-2, Vector2i(loc.x, loc.y+1), Direction.S, now);
-        setAttackable(range-2, Vector2i(loc.x-1, loc.y), Direction.W, now);
-        if (range >= 3) {
-            setAttackable(range-3, Vector2i(loc.x+1, loc.y-1), Direction.NE, now);
-            setAttackable(range-3, Vector2i(loc.x+1, loc.y+1), Direction.SE, now);
-            setAttackable(range-3, Vector2i(loc.x-1, loc.y+1), Direction.SW, now);
-            setAttackable(range-3, Vector2i(loc.x-1, loc.y-1), Direction.NW, now);
+        Vector2i[] attackableCoords;
+        attackableCoords ~= projectileScan(loc, Direction.N, range, map);
+        attackableCoords ~= projectileScan(loc, Direction.NE, range, map);
+        attackableCoords ~= projectileScan(loc, Direction.E, range, map);
+        attackableCoords ~= projectileScan(loc, Direction.SE, range, map);
+        attackableCoords ~= projectileScan(loc, Direction.S, range, map);
+        attackableCoords ~= projectileScan(loc, Direction.SW, range, map);
+        attackableCoords ~= projectileScan(loc, Direction.W, range, map);
+        attackableCoords ~= projectileScan(loc, Direction.NW, range, map);
+        foreach(tileLoc; attackableCoords) {
+            this.distances[tileLoc.x][tileLoc.y].attackableAfter = true;
+            if (forNow) this.distances[tileLoc.x][tileLoc.y].attackableNow = true;
         }
-    }
-    
-    private bool setAttackable(int range, Vector2i loc, Direction direction, bool now) {
-        if (loc.x < 0 || loc.y < 0 || loc.x >= map.getWidth || loc.y >= map.getLength || range < 0) return false;
-        else if (map.getTile(loc.x, loc.y).allowUnit(true)) {
-            this.distances[loc.x][loc.y].attackableAfter = true;
-            if (now) this.distances[loc.x][loc.y].attackableNow = true;
-            if (!direction.diagonal) {
-                if (range >= 2 && direction.diagonal && setAttackable(range-2, offsetByDirection(direction, loc), direction, now) && range >= 3) {
-                    setAttackable(range-3, offsetByDirection(direction-1, loc), direction, now);
-                    setAttackable(range-3, offsetByDirection(direction+1, loc), direction, now);
-                }
-                
-            } else if (range >= 3 && (getDistance(offsetByDirection(direction-1, loc)).attackableAfter && getDistance(offsetByDirection(direction+1, loc)).attackableAfter)) {
-                setAttackable(range-3, offsetByDirection(direction, loc), direction, now);
-            }
-        } else return false;
-        return true;
     }
 
     void setDistanceArraySize() {
@@ -261,6 +278,7 @@ class Unit {
     }
     
     TileAccess getDistance(int x, int y) {
+        debug if (x<0 || x>=distances.length || y<0 || y>=distances[x].length) throw new Exception("Called getDistance for non-existent location "~to!string(x)~", "~to!string(y));
         return this.distances[x][y];
     }
 

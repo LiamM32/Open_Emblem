@@ -4,12 +4,23 @@ authors "Liam McGillivray"
 copyright "Copyright © 2024, Liam McGillivray"
 license "GPL-3.0-or-later"
 
-targetType "sourceLibrary"
+//targetType "sourceLibrary"
 
-excludedSourceFiles "source/loadData.d"
+versions "gridBoundsCheck"
+excludedSourceFiles "source/loadData.d" "source/benchmark.d"
+
+configuration "regular" {
+    targetType "sourceLibrary"
+}
+
+configuration "benchmark" {
+    targetType "executable"
+    mainSourceFile "source/benchmark.d"
+}
 
 subPackage {
     name "loadData"
     targetType "sourceLibrary"
     dependency "open_emblem" version="*" path="."
 }
+

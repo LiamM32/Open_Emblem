@@ -165,7 +165,11 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
     }
     
     Tile getTile(Vector2i location) {
-        return this.grid[location.x][location.y];
+        if (location.x >= 0 && location.x < this.gridWidth && location.y >= 0 && location.y < this.gridLength) return this.grid[location.x][location.y];
+        else {
+            writeln("Map size is "~to!string(gridWidth)~"×"~to!string(gridLength));
+            throw new Exception("Tried to get non-existent tile for position "~to!string(location.x)~", "~to!string(location.y));
+        }
     }
     
     Tile getTile(int x, int y) {
@@ -193,10 +197,17 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
     }
     
     uint getWidth() {
-        return cast(uint)this.grid.length;
+        if (this.gridWidth == 0) {
+            this.gridWidth = cast(ushort)this.grid.length;
+        }
+        return cast(uint)this.gridWidth;
     }
     uint getLength() {
         return cast(uint)this.grid[0].length;
+    }
+
+    Vector2i getSize() {
+        return Vector2i(this.gridWidth, this.gridLength);
     }
 
     bool deleteUnit(Unit unit, bool destroy=false) { //Always set `destroy` to false when calling from the Unit destructor, to avoid an infinite loop.
@@ -234,6 +245,7 @@ interface Map {
     Tile[][] getGrid();
     uint getWidth();
     uint getLength();
+    Vector2i getSize();
     Unit getOccupant(int x, int y);
     bool allTilesLoaded();
     bool deleteUnit(Unit unit, bool destroy);

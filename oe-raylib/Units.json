@@ -28,7 +28,7 @@
         "Weapon": {
             "name": "longbow",
             "type": "bow",
-            "range": 8,
+            "range": 7,
             "volume": 3,
             "atk": 7,
             "mass": 1,

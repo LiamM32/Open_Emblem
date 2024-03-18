@@ -7,6 +7,7 @@ class Tile
 	public string tileName;
 	protected bool allowStand = true;
 	protected bool allowFly = true;
+	bool allowShoot = true;
 	public int stickyness = 0;
 
 	protected short xlocation;
@@ -34,7 +35,8 @@ class Tile
 	}
 	
 	bool allowUnit(bool isFlyer) {
-		if (isFlyer) return this.allowFly;
+		if (this.occupant !is null) return false;
+		else if (isFlyer) return this.allowFly;
 		else return this.allowStand;
 	}
 

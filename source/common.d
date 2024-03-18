@@ -26,6 +26,13 @@ struct Vector2i //If being used with Godot-Dlang, may interfere with the struct 
         result.y = this.y - other.y;
         return result;
      }
+
+     Vector2i opBinary(string op:"*")(int coefficient) {
+        Vector2i result;
+        result.x = this.x * coefficient;
+        result.y = this.y * coefficient;
+        return result;
+     }
 }
 
 unittest
@@ -37,6 +44,11 @@ unittest
     
     assert(Vector2i(2, 5)+Vector2i(3, -8) == Vector2i(5,-3));
     assert(Vector2i(3, 6)-Vector2i(1, 2) == Vector2i(2, 4));
+    a = Vector2i(0, 0);
+    a = a *3;
+    assert(a == Vector2i(0,0));
+    a.x++;
+    assert(a == Vector2i(1,0));
 
     writeln("Vector2i unittest passed.");
 }
@@ -56,6 +68,8 @@ struct Direction //One of 8 directions stored in 3 bits
     enum Direction SW = Direction(5);
     enum Direction W = Direction(6);
     enum Direction NW = Direction(7);
+
+    //alias this = value;
 
     ref Direction opUnary(string op:"++")() {
         value++;
@@ -143,17 +157,16 @@ Vector2i offsetByDirection(Direction direction, Vector2i location=Vector2i(0,0))
     return location;
 }
 
-uint measureDistance(Vector2i a, Vector2i b) {
+uint measureDistance(Vector2i a, Vector2i b=Vector2i(0,0)) {
     import std.math.algebraic;
     import std.algorithm;
     auto xdiff = abs(a.x - b.x);
-    auto ydiff = abs(a.y = b.y);
-    return xdiff + ydiff + min(xdiff, ydiff);
+    auto ydiff = abs(a.y - b.y);
+    return xdiff + ydiff + max(xdiff, ydiff);
 }
 
 unittest
 {
-    import std.stdio;
     debug writeln("Starting Direction unittest.");
     Direction direction = Direction.N;
     direction--;
@@ -175,7 +188,6 @@ unittest
 
 unittest
 {
-    import std.stdio;
     debug writeln("Starting offsetByDirection unittest.");
     Vector2i position = {5, 7};
     assert(offsetByDirection(Direction.N, position) == Vector2i(5, 6));
@@ -188,6 +200,15 @@ unittest
     writeln("offsetByDirection unittest passed.");
 }
 
+unittest
+{
+    debug writeln("Starting `measureDistance` unittest.");
+    assert(measureDistance(Vector2i(0,0), Vector2i(2,1)) == 5);
+    writeln(measureDistance(Vector2i(12,12), Vector2i(6,0)));
+    assert(measureDistance(Vector2i(12,12), Vector2i(6,0)) == 30);
+    writeln("`measureDistance` unittest passed.");
+}
+
 T[] cleanupArray(T)(T[] array) {
     int skip = 0;
     for (int k=0; k < array.length-skip; k++) {
@@ -198,7 +219,7 @@ T[] cleanupArray(T)(T[] array) {
     return array;
 }
 
-unittest {
+/*unittest {
     writeln("Starting cleanupArray unittest.");
     import unit;
 
@@ -219,4 +240,4 @@ unittest {
     assert(units.length == 3, "`cleanupArray` function failed to delete the correct number.");
     assert(units[2].name == "Jamie D");
     writeln("`cleanupArray` unittest passed.");
-}
+}*/

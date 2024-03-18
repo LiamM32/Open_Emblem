@@ -89,6 +89,8 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                 }
             }
         }
+        this.gridWidth = cast(ushort)this.grid.length;
+        this.gridLength = cast(ushort)this.grid[0].length;
         this.mapSizePx.x = cast(int)this.grid.length * TILEWIDTH;
         this.mapSizePx.y = cast(int)this.grid[0].length * TILEHEIGHT;
         debug writeln("Finished loading map " ~ this.name);
@@ -326,6 +328,10 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         VisibleUnit movingUnit = null;
         debug Texture arrow = LoadTexture("../sprites/arrow.png");
 
+        foreach (row; this.grid) foreach (tile; row) {
+            writeln("Tile ", tile.x, ", ", tile.y, " is occupied by ", tile.occupant);
+        }
+
         while(!WindowShouldClose())
         {
             debug if (playerAction != Action.Nothing && selectedUnit is null) throw new Exception ("`playerAction is not set to `Nothing`, but `selectedUnit` is null.");
@@ -347,9 +353,8 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                             playerAction = Action.Nothing;
                         }
                     } else if (playerAction == Action.Attack && selectedUnit.getDistance(gridx,gridy).attackableNow) {
-                        if (tile.occupant !is null && !canFind(factionsByName["player"].allies, tile.occupant.faction.name)) {
+                        if (tile.occupant !is null) {
                             DrawRectangleRec(tile.getRect(offset), Color(240, 60, 60, 60));
-                            
                         } else DrawRectangleRec(tile.getRect(offset), Color(200, 60, 60, 30));
                         if(leftClick && CheckCollisionPointRec(mousePosition, tile.getRect(offset))) {
                             selectedUnit.attack(gridx, gridy);
@@ -358,9 +363,10 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                         }
                     }
                     if (CheckCollisionPointRec(mousePosition, tile.getRect(offset))) {
-                        if (tile.occupant !is null) {
+                        if (tile.occupant !is null) { // This should later be filtered for only enemy factions.
                             if (leftClick && playerAction == Action.Nothing) {
                                 this.selectedUnit = tile.occupant;
+                                this.selectedUnit.updateDistances;
                                 if (updateOnClick) this.selectedUnit.updateDistances();
                             }
                             if (this.selectedUnit !is null) {
@@ -387,18 +393,17 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                     version (customgui) {
                         if (selectedUnit.canMove && moveButton.button(onButton)) {
                             playerAction = Action.Move;
-                        } else if (!selectedUnit.hasActed) {
-                            if (attackButton.button(onButton)) playerAction = Action.Attack;
-                            else if (itemsButton.button(onButton)) {
-                                playerAction = Action.Items;
-                                itemsList = new MenuList!Item(GetScreenWidth-128, GetScreenHeight()/2, selectedUnit.inventory);
-                            }
-                        } else if (waitButton.button(onButton)) if (leftClick) {
+                        } else if (!selectedUnit.hasActed && attackButton.button(onButton)) {
+                            playerAction = Action.Attack;
+                        } else if (itemsButton.button(onButton)) {
+                            playerAction = Action.Items;
+                            itemsList = new MenuList!Item(GetScreenWidth-128, GetScreenHeight()/2, selectedUnit.inventory);
+                        } else if (waitButton.button(onButton)) {
                             selectedUnit.hasActed = true;
                             selectedUnit.finishedTurn = true;
                             playerAction = Action.Nothing;
                             selectedUnit = null;
-                        }
+                        } else if (backButton.button(onButton)) selectedUnit = null;
                     } version (raygui) {
                         if (selectedUnit.MvRemaining > 1) if (GuiButton(moveButton, "#150#Move".toStringz)) playerAction = Action.Move;
                         if (!selectedUnit.hasActed) if (GuiButton(attackButton, "#155#Attack".toStringz)) playerAction = Action.Attack;
@@ -409,10 +414,10 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                             playerAction = Action.Nothing;
                             selectedUnit = null;
                         }
+                        if (GuiButton(backButton, "Back".toStringz)) selectedUnit = null;
                     }
                 } else {
                     version (customgui) {
-                        backButton.draw;
                         if (backButton.button(onButton)) playerAction = Action.Nothing;
                     } version (raygui) {
                         if (GuiButton(backButton, "Back".toStringz)) playerAction = Action.Nothing;
