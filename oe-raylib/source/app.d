@@ -15,7 +15,7 @@ void main()
 {
 	validateRaylibBinding();
 	InitWindow(screenWidth, screenHeight, "Open Emblem");
-	SetTargetFPS(getRefreshRate);
+	version (syncFPS) SetTargetFPS(getRefreshRate);
     version (raygui) setRayGuiStyle();
 
     scope(exit) CloseWindow();

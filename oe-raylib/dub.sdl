@@ -15,16 +15,21 @@ dependency "x11" version="*" platform="linux"
 libs "X11" "Xrandr" platform="linux"
 
 configuration "customgui" {
-    versions "customgui"
+    versions "customgui" "syncFPS"
     dependency "raylib-d" version="*"
 }
 
 configuration "raygui" {
-    versions "raygui"
+    versions "raygui" "syncFPS"
     dependency "raylib-d" version="*"
 }
 
 configuration "Fluid" { //This version does not work well.
-    versions "Fluid"
+    versions "Fluid" "syncFPS"
     dependency "fluid" version="*"
+}
+
+configuration "framerate-test" {
+    versions "customgui" "drawFPS"
+    dependency "raylib-d" version="*"
 }

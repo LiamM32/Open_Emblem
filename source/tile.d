@@ -20,9 +20,14 @@ class Tile
 	
 	public Unit occupant;
 
-	this() {}
+	this(int x, int y) {
+		this.xlocation = cast(short)x;
+		this.ylocation = cast(short)y;
+	}
 	
-	this(string tileName, bool allowStand, bool allowFly, int stickyness, ushort textureID, string textureName = "") {
+	this(int x, int y, string tileName, bool allowStand, bool allowFly, int stickyness, ushort textureID, string textureName = "") {
+		this.xlocation = cast(short)x;
+		this.ylocation = cast(short)y;
 		this.tileName = tileName;
 		this.allowStand = allowStand;
 		this.allowFly = allowFly;
@@ -30,7 +35,9 @@ class Tile
 		this.textureName = textureName;
 	}
 
-	this(bool allowStand=true, bool allowFly=true, bool allowShoot=true, int stickyness=0) {
+	this(int x, int y, bool allowStand=true, bool allowFly=true, bool allowShoot=true, int stickyness=0) {
+		this.xlocation = cast(short)x;
+		this.ylocation = cast(short)y;
 		this.allowStand = allowStand;
 		this.allowFly = allowFly;
 		this.allowShoot = allowShoot;

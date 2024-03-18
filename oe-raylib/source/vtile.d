@@ -19,15 +19,13 @@ class VisibleTile : Tile//T!VisibleTile
         else this.allowShoot = this.allowStand;
         this.stickyness = tileData["stickiness"].get!int;
         this.textureName = tileData["tile_sprite"].get!string;
-        this.xlocation = cast(short) x;
-        this.ylocation = cast(short) y;
         this.origin = Vector2i(x*TILEWIDTH, y*TILEHEIGHT);
         this.rect.x = cast(float) x * TILEWIDTH;
         this.rect.y = cast(float) y * TILEHEIGHT;
         this.rect.width = TILEWIDTH;
         this.rect.height = TILEHEIGHT;
 
-        super();
+        super(cast(int)x, cast(int)y);
     }
 
     Vector2 getDestination (Vector2 offset) {

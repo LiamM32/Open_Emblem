@@ -35,7 +35,7 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
         foreach (x; 0 .. width) {
             this.grid[x].length = length;
             foreach (y; 0 .. length) {
-                this.grid[x][y] = new Tile();
+                this.grid[x][y] = new Tile(x, y);
             }
         }
         this.gridWidth = width;
@@ -74,7 +74,7 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
                 int stickiness = tile["stickiness"].get!int;
                 string textureName = tile["tile_sprite"].get!string;
                 ushort textureID = this.findAssignTextureID(textureName);
-                this.grid[x][y] = new TileType(tileName, allowStand, allowFly, stickiness, textureID, textureName);
+                this.grid[x][y] = new TileType(x, y, tileName, allowStand, allowFly, stickiness, textureID, textureName);
             }
         }
         this.fullyLoaded = true;

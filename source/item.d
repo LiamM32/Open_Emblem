@@ -147,7 +147,7 @@ unittest
         Tile[][] grid;
         grid.length = 25;
         for (uint x=0; x<25; x++) for (uint y=0; y<25; y++) {
-            if (x==9 && y==11) grid[x] ~= new Tile(false, false, false, 0);
+            if (x==9 && y==11) grid[x] ~= new Tile(x, y, false, false, false, 0);
             else grid[x] ~= new Tile(true, true, true, 0);
         }
         map = new MapTemp!(Tile, Unit)("test", grid);

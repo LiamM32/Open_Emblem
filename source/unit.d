@@ -19,7 +19,7 @@ class Unit {
     public Faction faction;
     public uint spriteID;
     
-    static ubyte lookahead = 1;
+    //static ubyte lookahead = 1;
     
     public string name;
     private uint Mv;
@@ -31,12 +31,17 @@ class Unit {
     
     public Item[5] inventory;
     public Weapon currentWeapon;
-    protected TileAccess[][] distances;
+    protected TileAccess[][] tileReach;
     public int MvRemaining;
     alias moveRemaining = MvRemaining;
     public bool hasActed;
     public bool finishedTurn;
     public int HP;
+
+    version (moreCaching) {
+        protected TileAccess*[] reachableTiles; //Cache of reachable members of `tileReach`
+        protected TileAccess*[] attackableTiles;; //Cache of members of `tileReach` attackable this or next turn
+    }
 
     this(string name, Map map, UnitStats stats, uint xlocation, uint ylocation) {
         this(name, map, stats);
@@ -56,7 +61,7 @@ class Unit {
     }
 
     this(string name, UnitStats stats) {
-        this.setDistanceArraySize;
+        this.setTileReachArraySize;
         this.name = name;
         this.Mv = stats.Mv;
         this.MvRemaining = this.Mv;
@@ -80,13 +85,13 @@ class Unit {
     
     this(Map map, JSONValue unitData) {
         this.map = map;
-        this.setDistanceArraySize;
+        this.setTileReachArraySize;
         this(unitData);
     }
 
     this(Map map, JSONValue unitData, int textureID) {
         this.map = map;
-        this.setDistanceArraySize;
+        this.setTileReachArraySize;
         this(unitData);
     }
 
@@ -117,7 +122,7 @@ class Unit {
         this.hasActed = false;
         this.finishedTurn = false;
         this.MvRemaining = this.Mv;
-        updateDistances();
+        updateReach();
     }
     
     void setLocation(Tile destination, bool runUpdateDistances) {
@@ -129,7 +134,7 @@ class Unit {
                 break;
             }
         }
-        if (runUpdateDistances) this.updateDistances();
+        if (runUpdateDistances) this.updateReach();
     }
     
     void setLocation(int x, int y, bool runUpdateDistances = true) { //runUpdateDistances should be removed due to map.fullyLoaded being used instead. However, removing it causes a segfault.
@@ -142,12 +147,12 @@ class Unit {
         writeln(this.map.getTile(x,y));
         this.map.getTile(x, y).setOccupant(this);
         
-        if (runUpdateDistances && this.map.allTilesLoaded()) this.updateDistances();
+        if (runUpdateDistances && this.map.allTilesLoaded()) this.updateReach();
     }
 
     bool move (int x, int y) {
-        if (this.distances[x][y].reachable && map.getTile(x,y).occupant is null) {
-            this.moveRemaining -= this.distances[x][y].distance;
+        if (this.tileReach[x][y].reachable && map.getTile(x,y).occupant is null) {
+            this.moveRemaining -= this.tileReach[x][y].distance;
             this.currentTile.occupant = null;
             this.setLocation(x, y, true);
             writeln(this.name~" has "~to!string(MvRemaining)~" Mv remaining.");
@@ -156,44 +161,59 @@ class Unit {
     }
 
     bool attack (uint x, uint y) {
-        if (currentWeapon !is null || !distances[x][y].attackableNow /*> this.currentWeapon.range*/) return false;
+        if (currentWeapon !is null || !tileReach[x][y].attackableNow /*> this.currentWeapon.range*/) return false;
         if (this.map.getTile(x, y).occupant is null) return false;
 
         Unit opponent = this.map.getTile(x, y).occupant;
-        opponent.HP -= (this.Str * this.Str)/(this.Str + opponent.Def);
+        opponent.receiveDamage((this.Str * this.Str)/(this.Str + opponent.Def));
 
         this.hasActed = true;
 
         return true;
     }
 
-    short getAttackDamage (Unit opponent, ushort distance=2) {
-        return cast(short)((this.Str * this.Str)/(this.Str + opponent.Def));
+    AttackRisk getAttackRisk (Unit opponent, ushort distance=2) {
+        short damage = cast(short)((this.Str * this.Str)/(this.Str + opponent.Def));
+        return AttackRisk(damage:damage);
     }
 
-    public void updateDistances() {
-        writeln("Unit "~this.name~" is on map "~to!string(this.map)~". Updating distances");
+    void receiveDamage(int damage) {
+        this.HP -= damage;
+        debug writeln(this.name~" has received ", damage, " damage. HP now at ", this.HP);
+        if (this.HP < 0) {
+            writeln(this.name~" has fallen.");
+            destroy(this);
+        }
+    }
+
+    public void updateReach(ubyte lookahead=1) {
+        writeln("Unit "~this.name~" is on map "~to!string(this.map)~". Updating tileReach");
+        if (tileReach.length==0) setTileReachArraySize();
         foreach(int x, row; this.map.getGrid()) {
             foreach(int y, mapTile; row) {
-                this.distances[x][y].reset;
-                this.distances[x][y].tile = mapTile;
+                this.tileReach[x][y].reset;
+                this.tileReach[x][y].tile = mapTile;
             }
         }
+        this.reachableTiles.length = 0;
+        this.attackableTiles.length = 0;
 
-        updateDistances(0, this.xlocation, this.ylocation, this.facing);
+        updateReach(0, this.xlocation, this.ylocation, this.facing, lookahead);
         setAttackable(Vector2i(xlocation, ylocation), true);
-        writeln("Finished updating distances for unit "~this.name);
     }
     
-    private bool updateDistances(uint distancePassed, int x, int y, Direction wentIn) {
+    private bool updateReach(uint distancePassed, int x, int y, Direction wentIn, ubyte lookahead=1) {
         import tile;
         if (!this.map.getTile(x, y).allowUnit(this.isFlyer) && distancePassed > 0) return false;
-        if (this.distances[x][y].measured && this.distances[x][y].distance <= distancePassed) return true;
+        if (this.tileReach[x][y].measured && this.tileReach[x][y].distance <= distancePassed) return true;
         
-        this.distances[x][y].distance = distancePassed;
-        this.distances[x][y].measured = true;
-        this.distances[x][y].directionTo = wentIn;
-        if (distancePassed <= this.MvRemaining) this.distances[x][y].reachable = true;
+        this.tileReach[x][y].distance = distancePassed;
+        this.tileReach[x][y].measured = true;
+        this.tileReach[x][y].directionTo = wentIn;
+        if (distancePassed <= this.MvRemaining) {
+            this.tileReach[x][y].reachable = true;
+            this.reachableTiles ~= &tileReach[x][y];
+        }
         
         auto stickyness = this.map.getTile(x, y).stickyness;
         distancePassed += stickyness;
@@ -203,52 +223,21 @@ class Unit {
             bool canNorth = false;
             bool canEast = false;
             bool canSouth = false;
-            if (x > 0) canWest = this.updateDistances(distancePassed +2, x-1, y, Direction.W);
-            if (y > 0) canNorth = this.updateDistances(distancePassed +2, x, y-1, Direction.N);
-            if (x+1 < this.map.getWidth()) canEast = this.updateDistances(distancePassed +2, x+1, y, Direction.E);
-            if (y+1 < this.map.getLength()) canSouth = this.updateDistances(distancePassed +2, x, y+1, Direction.S);
+            if (x > 0) canWest = this.updateReach(distancePassed +2, x-1, y, Direction.W, lookahead);
+            if (y > 0) canNorth = this.updateReach(distancePassed +2, x, y-1, Direction.N, lookahead);
+            if (x+1 < this.map.getWidth()) canEast = this.updateReach(distancePassed +2, x+1, y, Direction.E, lookahead);
+            if (y+1 < this.map.getLength()) canSouth = this.updateReach(distancePassed +2, x, y+1, Direction.S, lookahead);
 
             distancePassed += stickyness>>1;
             if (distancePassed <= this.MvRemaining*lookahead -3) {
-                if (canWest && canNorth) this.updateDistances(distancePassed +3, x-1, y-1, Direction.NW);
-                if (canWest && canSouth) this.updateDistances(distancePassed +3, x-1, y+1, Direction.SW);
-                if (canEast && canSouth) this.updateDistances(distancePassed +3, x+1, y+1, Direction.SE);
-                if (canEast && canNorth) this.updateDistances(distancePassed +3, x+1, y-1, Direction.NE);
+                if (canWest && canNorth) this.updateReach(distancePassed +3, x-1, y-1, Direction.NW, lookahead);
+                if (canWest && canSouth) this.updateReach(distancePassed +3, x-1, y+1, Direction.SW, lookahead);
+                if (canEast && canSouth) this.updateReach(distancePassed +3, x+1, y+1, Direction.SE, lookahead);
+                if (canEast && canNorth) this.updateReach(distancePassed +3, x+1, y-1, Direction.NE, lookahead);
             }
         }
         return true;
     }
-
-    /*void setAttackableNew(int range) {
-        import std.algorithm.comparison;
-        byte maxStepx = min()
-        byte maxStepy;
-        /*foreach (xoffset; -(range>>1) .. (range>>1)) foreach (yoffset; -(range>>1) .. (range>>1)) if (measureDistance(Vector2(xoffset,yoffset))*2<range) {
-            a
-        }*//*
-        foreach (stepSize; 1 .. (range>>1)-1);
-
-        void scan(Vector2i origin, Direction direction, bool forNow){
-            Vector2i offset = offsetByDirection(direction);
-            Vector2i trunkCurrent;
-            for(st=1; st<=range>>1; st++) { // Scanning in one straight direction from origin.
-                trunkCurrent = origin + offset*st;
-                if (!map.getTile(trunkCurrent).allowShoot) break; // Break if an obstructing tile is reached.
-                this.distances[trunkCurrent.x][trunkCurrent.y].attackableAfter = true;
-                if (forNow) this.distances[trunkCurrent.x][trunkCurrent.y].attackableNow = true;
-                if (st <= range>>2) {
-                    Vector2i current = trunkCurrent;
-                    for(tb=1; st*2+tb*3<=range) { // Start scanning at a slightly different angle.
-                        current = offsetByDirection(direction-1, current);
-                        for(sb=0; sb<st>>1; sb++) if (map.getTile(current) is null || !map.getTile(current).allowShoot) break;
-                        this.distances[current.x][current.y].attackableAfter = true;
-                        if (forNow) this.distances[current.x][current.y].attackableNow = true;
-                        for(sb=0; sb+1<st>>1; sb++) if (map.getTile(current) is null || !map.getTile(current).allowShoot) break;
-                    }
-                }
-            }
-        }
-    }*/
 
     private void setAttackable(Vector2i loc, bool forNow) { //This function will probably get replaced eventually with weapon-specific functions.
         short range;
@@ -264,35 +253,46 @@ class Unit {
         attackableCoords ~= projectileScan(loc, Direction.W, range, map);
         attackableCoords ~= projectileScan(loc, Direction.NW, range, map);
         foreach(tileLoc; attackableCoords) {
-            this.distances[tileLoc.x][tileLoc.y].attackableAfter = true;
-            if (forNow) this.distances[tileLoc.x][tileLoc.y].attackableNow = true;
+            this.tileReach[tileLoc.x][tileLoc.y].attackableAfter = true;
+            if (forNow) this.tileReach[tileLoc.x][tileLoc.y].attackableNow = true;
         }
     }
 
-    void setDistanceArraySize() {
-        this.distances.length = this.map.getWidth;
-        foreach(ref row; this.distances) row.length = this.map.getLength;
+    void setTileReachArraySize() {
+        this.tileReach.length = this.map.getWidth;
+        foreach(ref row; this.tileReach) row.length = this.map.getLength;
     }
 
     TileAccess getDistance(Vector2i location) {
         if (location.x <= 0 && location.y <= 0 && location.x >= map.getWidth && location.y >= map.getLength) {
-            return this.distances[location.x][location.y];
+            return this.tileReach[location.x][location.y];
         } else return TileAccess(tile:null, measured:true, reachable:false, attackableNow:false, attackableAfter:false);
     }
     
     TileAccess getDistance(int x, int y) {
-        debug if (x<0 || x>=distances.length || y<0 || y>=distances[x].length) throw new Exception("Called getDistance for non-existent location "~to!string(x)~", "~to!string(y));
-        return this.distances[x][y];
+        debug if (x<0 || x>=tileReach.length || y<0 || y>=tileReach[x].length) throw new Exception("Called getDistance for non-existent location "~to!string(x)~", "~to!string(y));
+        return this.tileReach[x][y];
     }
 
-    Vector2i[] getReachable() {
-        Vector2i[] reachableCoordinates;
-        foreach (int x, row; this.distances) {
+    version (noCache) Vector2i[] getReachable(T)() {
+        T[] reachableTiles;
+        foreach (int x, row; this.tileReach) {
             foreach (int y, tileAccess; row) {
-                reachableCoordinates ~= Vector2i(x, y);
+                static if (T==Vector2i) reachableTiles ~= Vector2i(x, y);
+                static if (T==TileAccess) reachableTiles ~= tileAccess;
             }
         }
-        return reachableCoordinates;
+        return reachableTiles;
+    }
+
+    version (moreCaching) {
+        TileAccess*[] getReachable(T)() if (is(T==TileAccess)) {
+            return reachableTiles;
+        }
+
+        TileAccess*[] getAttackable(T)() if (is(T==TileAccess)) {
+            return attackableTiles;
+        }
     }
 
     bool canMove() {
@@ -313,7 +313,7 @@ class Unit {
     TileAccess[] getPath(Vector2i destination) {
         TileAccess[] path;
         debug writeln(destination);
-        TileAccess thisTileAccess = this.distances[destination.x][destination.y];
+        TileAccess thisTileAccess = this.tileReach[destination.x][destination.y];
         Direction directionTo = thisTileAccess.directionTo;
         if (map.getTile(destination)==this.currentTile) return [];
         else path = getPath(offsetByDirection(directionTo+4, destination));
@@ -352,6 +352,10 @@ struct UnitStats {
     uint Def;
 }
 
+struct AttackRisk {
+    short damage;
+}
+
 unittest //Currently incomplete test of attack damage
 {
     //debug writeln("Starting Unit attack unittest.");
@@ -368,19 +372,41 @@ unittest //Currently incomplete test of attack damage
 
 unittest
 {
-    debug writeln("Starting UnitStats unittest.");
-    JSONValue unitJSON;
-    unitJSON["Name"] = "Soldier";
-    unitJSON["Mv"] = 6;
-    unitJSON["Str"] = 24;
-    unitJSON["Def"] = 18;
-    unitJSON["MHP"] = 120;
-    Unit testUnit = new Unit(unitJSON);
-    UnitStats stats = testUnit.getStats();
-    assert(stats.Mv == 6);
-    assert(stats.isFlyer == false);
-    assert(stats.MHP == 120);
-    assert(stats.Str == 24);
-    assert(stats.Def == 18);
-    writeln("UnitStats unittest passed.");
+    import std.algorithm.searching;
+    Unit unitA;
+    {
+        debug writeln("Starting UnitStats unittest.");
+        JSONValue unitJSON;
+        unitJSON["Name"] = "Soldier";
+        unitJSON["Mv"] = 7;
+        unitJSON["Str"] = 24;
+        unitJSON["Def"] = 18;
+        unitJSON["MHP"] = 120;
+        unitA = new Unit(unitJSON);
+        UnitStats stats = unitA.getStats();
+        assert(stats.Mv == 7);
+        assert(stats.isFlyer == false);
+        assert(stats.MHP == 120);
+        assert(stats.Str == 24);
+        assert(stats.Def == 18);
+        writeln("UnitStats unittest passed.");
+    }
+    Map map = new MapTemp!(Tile, Unit)(cast(ushort)12, cast(ushort)12);
+    unitA.map = map;
+    version (moreCaching) {
+        debug writeln("Starting Unit caching unittest.");
+        unitA.setLocation(5, 5, true);
+
+        TileAccess*[] reachableTiles = unitA.getReachable!TileAccess;
+        Vector2i[] reachableCoords;
+        foreach (tileAccess; reachableTiles) {
+            reachableCoords ~= Vector2i(tileAccess.tile.x, tileAccess.tile.y);
+        }
+        for (uint x=0; x<12; x++) for (uint y=0; y<12; y++) {
+            if (measureDistance(Vector2i(5,5),Vector2i(x,y)) <= unitA.Mv) {
+                assert(canFind(reachableCoords, Vector2i(x,y)), "Did not find tile "~to!string(x)~", "~to!string(y)~" in returned tiles.");
+            } else assert(!canFind(reachableCoords, Vector2i(x,y)), "Unexpectedly found tile "~to!string(x)~", "~to!string(y)~" in returned tiles.");
+        }
+        writeln("Passed Unit caching unittest.");
+    }
 }

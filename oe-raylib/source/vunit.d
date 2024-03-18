@@ -37,7 +37,7 @@ class VisibleUnit : Unit
     override bool move(int x, int y) {
         import core.thread.osthread;
         
-        if (this.distances[x][y].reachable) {
+        if (this.tileReach[x][y].reachable) {
             TileAccess[] path = getPath(Vector2i(x,y));
             super.move(x, y);
             return true;
@@ -81,7 +81,7 @@ class VisibleUnit : Unit
         
         Vector2 initial = this.position;
         float stepDistance = GetFrameTime / 1000;
-        if (this.distances[x][y].directionTo.to!int%2) stepDistance /= 1.41421356237;
+        if (this.tileReach[x][y].directionTo.to!int%2) stepDistance /= 1.41421356237;
         if (x*TILEWIDTH > position.x) this.position.x += 1.0f;// = min(position.x+stepDistance, cast(float)(x*TILEWIDTH));
         else if (x*TILEWIDTH < position.x) this.position.x -= 1.0f; // = max(position.x-stepDistance, cast(float)(x*TILEWIDTH));
         if (y*TILEHEIGHT > position.y) position.y += 1.0f;// = min(position.y+stepDistance, cast(float)(y*TILEHEIGHT));

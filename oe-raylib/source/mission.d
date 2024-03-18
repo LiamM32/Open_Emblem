@@ -250,7 +250,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                     }
                 }
             }
-            DrawFPS(20, 20);
+            version (drawFPS) DrawFPS(20, 20);
             EndDrawing();
         }
 
@@ -367,8 +367,8 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                         if (tile.occupant !is null) { // This should later be filtered for only enemy factions.
                             if (leftClick && playerAction == Action.Nothing) {
                                 this.selectedUnit = tile.occupant;
-                                this.selectedUnit.updateDistances;
-                                if (updateOnClick) this.selectedUnit.updateDistances();
+                                this.selectedUnit.updateReach;
+                                if (updateOnClick) this.selectedUnit.updateReach();
                             }
                             if (this.selectedUnit !is null) {
                                 if (this.selectedUnit.getDistance(gridx, gridy).reachable) {
@@ -445,6 +445,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                     }
                 }
             }
+            version (drawFPS) DrawFPS(20, 20);
             EndDrawing();
         }
 
