@@ -158,15 +158,17 @@ class UnitInfoCard
         return this.unit.getStats;
     }
 
-    void draw(Texture[] sprites) {
+    bool draw(Texture[] sprites) {
+        if (unit.currentTile !is null) return false;
         DrawRectangleRec(outline, Color(r:250, b:230, g:245, a:200));
         DrawRectangleLinesEx(outline, 1.0f, Colors.BLACK);
-        DrawTexture(this.unit.sprite, cast(int)outline.x+4, cast(int)outline.y+2, Colors.WHITE);
+        DrawTexture(unit.sprite, cast(int)outline.x+4, cast(int)outline.y+2, Colors.WHITE);
         //DrawText(this.unit.name.toStringz, x+80, y+4, 14, Colors.BLACK);
-        DrawTextEx(font, unit.name.toStringz, Vector2(x+80, y+4), 16.0f, 1.0f, Colors.BLACK);
+        DrawTextEx(font, unit.name.toStringz, Vector2(x+80, y+4), 17.0f, 1.0f, Colors.BLACK);
         //DrawText(this.infotext.toStringz, x+80, y+20, 11, Colors.BLACK);
-        DrawTextEx(font, infotext.toStringz, Vector2(x+80, y+20), 12.0f, 1.0f, Colors.BLACK);
+        DrawTextEx(font, infotext.toStringz, Vector2(x+80, y+20), 12.5f, 1.0f, Colors.BLACK);
         SetTextureFilter(font.texture, TextureFilter.TEXTURE_FILTER_BILINEAR);
+        return true;
     }
 }
 
@@ -224,5 +226,5 @@ enum Colours {
     Highlight = Color(245, 245, 245, 32),
     Startpoint = Color(250, 250, 60, 35),
     Paper = Color(r:240, b:210, g:234, a:250),
-    Crimson = Color(180, 7, 13, 255),
+    Crimson = Color(160, 7, 16, 255),
 }

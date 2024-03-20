@@ -9,7 +9,7 @@ import ui;
 import mission;
 
 const int screenWidth = 768;
-const int screenHeight = 768;
+const int screenHeight = 720;
 
 void main()
 {

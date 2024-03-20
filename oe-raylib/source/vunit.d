@@ -48,29 +48,6 @@ class VisibleUnit : Unit
         position.y = this.ylocation*TILEHEIGHT;
     }
 
-    void followPath(int x, int y) {
-        import std.stdio;
-        writeln("Doing followPath");
-        TileAccess[] path = getPath(x, y);
-        writeln(path);
-
-        foreach(tileAccess; path) {
-            Tile tile = tileAccess.tile;
-            float move = 0.0f;
-            while (move < 1.0f) {
-                move += stepTowards(tile.x, tile.y, false);
-                WaitTime(GetFrameTime);
-                BeginDrawing();
-                (cast(Mission)map).drawTiles;
-                (cast(Mission)map).drawUnits;
-                EndDrawing();
-                import std.conv;
-                writeln(this.name~" followed path to tile "~to!string(tile.x)~", "~to!string(tile.y));
-            }
-        }
-        writeln("Finished followPath");
-    }
-
     void stepTowards (Tile tile) { stepTowards(tile.x, tile.y);}
     
     void stepTowards() {

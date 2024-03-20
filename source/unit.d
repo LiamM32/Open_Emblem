@@ -366,7 +366,7 @@ struct TileAccess
 {
     Tile tile;
     Direction directionTo; //The tile that the unit would be moving in when reaching this tile in the optimal path.
-    uint distance = -1;
+    uint distance = 65535;
     bool measured = false;
     bool reachable = false;
     bool attackableNow = false;
