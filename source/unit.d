@@ -125,7 +125,7 @@ class Unit {
         updateReach();
     }
     
-    void setLocation(Tile destination, bool runUpdateDistances) {
+    void setLocation(Tile destination, bool runUpdateReach) {
         destination.setOccupant(this);
         foreach (int x, row; this.map.getGrid) {
             foreach (int y, someTile; row) if (someTile == destination) {
@@ -134,10 +134,10 @@ class Unit {
                 break;
             }
         }
-        if (runUpdateDistances) this.updateReach();
+        if (runUpdateReach) this.updateReach();
     }
     
-    void setLocation(int x, int y, bool runUpdateDistances = true) { //runUpdateDistances should be removed due to map.fullyLoaded being used instead. However, removing it causes a segfault.
+    void setLocation(int x, int y, bool runUpdateReach = true) { //runUpdateReach should be removed due to map.fullyLoaded being used instead. However, removing it causes a segfault.
         this.xlocation = x;
         this.ylocation = y;
         this.currentTile = this.map.getTile(x,y);
@@ -147,7 +147,7 @@ class Unit {
         writeln(this.map.getTile(x,y));
         this.map.getTile(x, y).setOccupant(this);
         
-        if (runUpdateDistances && this.map.allTilesLoaded()) this.updateReach();
+        if (runUpdateReach && this.map.allTilesLoaded()) this.updateReach();
     }
 
     bool move (int x, int y) {
@@ -263,14 +263,14 @@ class Unit {
         foreach(ref row; this.tileReach) row.length = this.map.getLength;
     }
 
-    TileAccess getDistance(Vector2i location) {
+    TileAccess getReach(Vector2i location) {
         if (location.x <= 0 && location.y <= 0 && location.x >= map.getWidth && location.y >= map.getLength) {
             return this.tileReach[location.x][location.y];
         } else return TileAccess(tile:null, measured:true, reachable:false, attackableNow:false, attackableAfter:false);
     }
     
-    TileAccess getDistance(int x, int y) {
-        debug if (x<0 || x>=tileReach.length || y<0 || y>=tileReach[x].length) throw new Exception("Called getDistance for non-existent location "~to!string(x)~", "~to!string(y));
+    TileAccess getReach(int x, int y) {
+        debug if (x<0 || x>=tileReach.length || y<0 || y>=tileReach[x].length) throw new Exception("Called getReach for non-existent location "~to!string(x)~", "~to!string(y));
         return this.tileReach[x][y];
     }
 
@@ -317,7 +317,7 @@ class Unit {
         Direction directionTo = thisTileAccess.directionTo;
         if (map.getTile(destination)==this.currentTile) return [];
         else path = getPath(offsetByDirection(directionTo+4, destination));
-        path ~= getDistance(destination);
+        path ~= getReach(destination);
         return path;
     }
 

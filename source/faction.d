@@ -8,7 +8,7 @@ class Faction
     Unit[] units;
     string[] allyNames;
     Faction[] allies;
-    string enemyNames;
+    string[] enemyNames;
     Faction[] enemies;
     bool isPlayer;
 
@@ -23,7 +23,7 @@ class Faction
             if (name in factionsByName) allies ~= factionsByName[name];
         }
         foreach (name; enemyNames) {
-            if (name.to!string in factionsByName) enemies ~= factionsByName[name.to!string];
+            if (name in factionsByName) enemies ~= factionsByName[name];
         }
     }
 
