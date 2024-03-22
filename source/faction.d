@@ -119,7 +119,7 @@ class NonPlayerFaction : Faction
 
     }*/
 
-    struct moveOption {
+    struct MoveOption {
         Tile moveTo;
         Unit opponent;
         AttackRisk attackPotential;

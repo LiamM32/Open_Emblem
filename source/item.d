@@ -129,6 +129,83 @@ Vector2i[] projectileScan(Vector2i origin, Direction direction, int range, Map m
     return attackable;
 }
 
+bool canShoot (Vector2i a, Vector2i b, Map map) {
+    import std.algorithm;
+    import std.math;
+    import std.bigint;
+    debug import std.conv;
+    debug import std.stdio;
+
+    debug writeln("Doing `canShoot from ",a.x,", ",a.y," to ",b.x,", ",b.y);
+
+    Vector2i trans = b - a;
+    ushort diagSteps = cast(ushort) min(abs(trans.x), abs(trans.y));
+    ushort orthSteps = cast(ushort)( max(abs(trans.x), abs(trans.y)) - diagSteps );
+    Vector2i current = a;
+
+    Vector2i stepDiag = Vector2i(sgn(trans.x), sgn(trans.y));
+    Vector2i stepOrtho = {0, 0};
+    if (abs(trans.x) > abs(trans.y)) stepOrtho.x = stepDiag.x;
+    else if (abs(trans.y) > (trans.x)) stepOrtho.y = stepDiag.y;
+
+    bool pathFound = false;
+
+    void tracePath(ushort straightSteps, ushort skews, Vector2i stepStraight, Vector2i stepSkew) {
+        debug writeln("Going to orthoFirst");
+        
+        current = a;
+        uint steplength1 = 1;
+        uint remainder;
+        if (skews > 0) {
+            steplength1 = straightSteps / skews;
+            remainder = straightSteps % skews;
+        }
+        uint steplength2 = (straightSteps - 1) >> 1;
+        steplength1 = straightSteps >> 1;
+        bool sym = steplength1 == steplength2;
+        debug writeln("skews = ", skews);
+        debug writeln("straightSteps = ", straightSteps);
+        debug writeln("steplength1 = ", steplength1);
+        debug writeln("steplength2 = ", steplength2);
+        debug writeln("Starting orthoFirst, current = ", current);
+        orthogonalFirst:
+        for (ushort cycle=0; cycle<max(1, skews); cycle++) {
+            debug writeln("Doing orthoFirst cycle ", cycle);
+            for (ushort stp=0; stp<(steplength1); stp++) {
+                current += stepStraight;
+                if (!map.getTile(current).allowShoot) goto Exit;
+            }
+            debug writeln("Did steplength1, current = ", current);
+            if (sym && cycle < remainder) {
+                current += stepStraight;
+                if (!map.getTile(current).allowShoot) goto Exit;
+                debug writeln("Did steplength1 again, current = ", current);
+            }
+            current += stepSkew;
+            debug writeln("Did stepSkew, current = ", current);
+            if (!sym && cycle < remainder) {
+                current += stepStraight;
+                if (!map.getTile(current).allowShoot) goto Exit;
+                debug writeln("Did steplength1 again, current = ", current);
+            }
+            if (!map.getTile(current).allowShoot) goto Exit;
+            for (ushort stp=0; stp<steplength2; stp++) {
+                current += stepStraight;
+                if (!map.getTile(current).allowShoot) goto Exit;
+            }
+            debug writeln("Did steplength2, current = ", current);
+        }
+        //assert (current == b, "`current` = "~to!string(current.x)~", "~to!string(current.y)~". It should be "~to!string(b.x)~", "~to!string(b.y));
+        if (current == b) pathFound = true;
+        Exit:
+    }
+
+    if (!pathFound && diagSteps >= orthSteps) tracePath(diagSteps, orthSteps, stepDiag, stepOrtho);
+    if (!pathFound && orthSteps >= diagSteps) tracePath(orthSteps, diagSteps, stepOrtho, stepDiag);
+
+    return pathFound;
+}
+
 
 unittest
 {
@@ -164,9 +241,16 @@ unittest
     attackable ~= projectileScan(Vector2i(12,12), Direction.NW, range, map);
 
     foreach(int x, row; map.getGrid) foreach(int y, tile; row) {
+        Vector2i location = {x, y};
         if (measureDistance(origin, Vector2i(x,y)) <= range && Vector2i(x,y) != origin) {
-            /*if (x<12 && y<12 && (12-x)%3==0 && (12-x)/3==(12-y)) assert(!canFind(attackable, Vector2i(x,y)), "Tile "~to!string(x)~", "~to!string(y)~" should be blocked.");
-            else*/ assert(canFind(attackable, Vector2i(x,y)), "Tile "~to!string(x)~", "~to!string(y)~" not found in returned coordinates.");
+            if ((x<12 && y<12 && (12-x)%3==0 && (12-x)/3==(12-y))||(x==8&&y==11)||(x==y&&y==10)) {
+                assert(!canShoot(Vector2i(12,12), Vector2i(x,y), map), "Tile "~to!string(x)~", "~to!string(y)~" should be blocked.");
+                //assert(!canFind(attackable, Vector2i(x,y)), "Tile "~to!string(x)~", "~to!string(y)~" should be blocked.");
+            }
+            else {
+                assert(canShoot(Vector2i(12,12), Vector2i(x,y), map), "Tile "~to!string(x)~", "~to!string(y)~" should not be blocked.");
+                assert(canFind(attackable, Vector2i(x,y)), "Tile "~to!string(x)~", "~to!string(y)~" not found in returned coordinates.");
+            }
         } else assert(!canFind(attackable, Vector2i(x,y)), "Tile "~to!string(x)~", "~to!string(y)~" should not be in returned coordinates.");
     }
     writeln("`projectileScan` unittest passed! Yay!");

@@ -195,7 +195,7 @@ class Unit {
     }
 
     public void updateReach(ubyte lookahead=1) {
-        writeln("Unit "~this.name~" is on map "~to!string(this.map)~". Updating tileReach");
+        debug writeln("Updating tileReach for "~this.name);
         if (tileReach.length==0) setTileReachArraySize();
         foreach(int x, row; this.map.getGrid()) {
             foreach(int y, mapTile; row) {
