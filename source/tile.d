@@ -1,6 +1,7 @@
 module tile;
 
 import unit;
+import common;
 
 class Tile
 {
@@ -52,6 +53,10 @@ class Tile
 		if (this.occupant !is null) return false;
 		else if (isFlyer) return this.allowFly;
 		else return this.allowStand;
+	}
+
+	Vector2i location() {
+		return Vector2i(cast(int)xlocation, cast(int)ylocation);
 	}
 
 	int x() {

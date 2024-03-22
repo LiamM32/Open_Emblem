@@ -22,7 +22,7 @@ class Unit {
     //static ubyte lookahead = 1;
     
     public string name;
-    private uint Mv;
+    public uint Mv;
     private bool isFlyer = false;
     public uint MHP;
     public uint Str;
@@ -111,6 +111,10 @@ class Unit {
             this.currentWeapon = weapon;
             this.inventory[0] = weapon;
         }
+
+        if ("faction" in unitData.object || "Faction" in unitData.object) {
+            this.faction = map.getFaction(unitData.object["faction"].get!string);
+        }
     }
 
     ~this() {
@@ -148,6 +152,10 @@ class Unit {
         this.map.getTile(x, y).setOccupant(this);
         
         if (runUpdateReach && this.map.allTilesLoaded()) this.updateReach();
+    }
+
+    Vector2i getLocation() {
+        return Vector2i(x:this.xlocation, y:this.ylocation);
     }
 
     bool move (int x, int y) {
@@ -289,14 +297,42 @@ class Unit {
         TileAccess*[] getReachable(T)() if (is(T==TileAccess)) {
             return reachableTiles;
         }
+        Tile[] getReachable(T)() if (is(T==Tile)) {
+            Tile[] tiles;
+            foreach (tileAccess; this.reachableTiles) tiles ~= tileAccess.tile;
+            return tiles;
+        }
+        Vector2i[] getReachable(T)() if (is(T==Vector2i)) {
+            Tile[] tiles;
+            foreach (tileAccess; this.reachableTiles) tiles ~= Vector2i(tileAccess.tile.x, tileAccess.tile.y);
+            return tiles;
+        }
 
         TileAccess*[] getAttackable(T)() if (is(T==TileAccess)) {
             return attackableTiles;
+        }
+        Tile[] getAttackable(T)() if (is(T==Tile)) {
+            Tile[] tiles;
+            foreach (tileAccess; this.attackableTiles) tiles ~= tileAccess.tile;
+            return tiles;
+        }
+        Vector2i[] getAttackable(T)() if (is(T==Vector2i)) {
+            Tile[] tiles;
+            foreach (tileAccess; this.attackableTiles) tiles ~= Vector2i(tileAccess.tile.x, tileAccess.tile.y);
+            return tiles;
         }
     }
 
     bool canMove() {
         return this.MvRemaining >= 2;
+    }
+
+    ushort attackRange() {
+        if (currentWeapon !is null) {
+            return currentWeapon.range;
+        } else {
+            return 2;
+        }
     }
 
     UnitStats getStats() {

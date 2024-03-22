@@ -108,7 +108,11 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
     void run() {
         startPreparation();
         this.mapView = Rectangle(0, 0, GetScreenWidth, GetScreenHeight);
-        playerTurn();
+        writeln("There are ", factions.length, " factions.");
+        while(!WindowShouldClose) {
+            playerTurn();
+            factions[1].turn();
+        }
     }
 
     void startPreparation() {   
@@ -328,10 +332,6 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
 
         VisibleUnit movingUnit = null;
         debug Texture arrow = LoadTexture("../sprites/arrow.png");
-
-        foreach (row; this.grid) foreach (tile; row) {
-            writeln("Tile ", tile.x, ", ", tile.y, " is occupied by ", tile.occupant);
-        }
 
         while(!WindowShouldClose())
         {

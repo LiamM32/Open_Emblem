@@ -82,27 +82,36 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
 
     protected bool loadFactionsFromJSON (JSONValue mapData) {
         import std.uni: toLower;
+        import std.algorithm.searching;
         
         this.factions ~= new Faction(name:"Player");
         this.factionsByName["player"] = this.factions[$-1];
         if ("factions" in mapData) {
             foreach (factionData; mapData.object["factions"].array) {
-                Faction faction;
-                if (factionData.type == JSONType.string) faction = new Faction(factionData.get!string, isPlayer:false);
+                NonPlayerFaction faction;
+                if (factionData.type == JSONType.string) {
+                    faction = new NonPlayerFaction(factionData.get!string, this);
+                    faction.enemyNames ~= "player";
+                    factionsByName["player"].enemyNames ~= faction.name;
+                }
                 else if (factionData.type == JSONType.object) { 
-                    faction = new Faction(factionData.object["name"].get!string);
+                    faction = new NonPlayerFaction(factionData.object["name"].get!string, this);
                     if ("allies" in factionData) foreach (ally; factionData.object["allies"].array) {
                         faction.allyNames ~= ally.get!string;
                     }
                     if ("enemies" in factionData) foreach (enemy; factionData.object["enemies"].array) {
                         faction.enemyNames ~= enemy.get!string;
-                    }
+                    } else if (!canFind(faction.allyNames, "player")) faction.enemyNames ~= "player";
                     faction.isPlayer = false;
                 }
+                
                 this.factions ~= faction;
                 this.factionsByName[faction.name] = faction;
             }
-            foreach(faction; this.factions) writeln("There is a faction called "~faction.name);
+            foreach(faction; this.factions) {
+                writeln("There is a faction called "~faction.name);
+                faction.setAlliesEnemies(factionsByName);
+            }
             return true;
         } else {
             this.factions ~= new Faction(name:"Player");
@@ -227,6 +236,13 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
         return Vector2i(this.gridWidth, this.gridLength);
     }
 
+    Faction getFaction(string name) {
+        import std.string:toLower;
+        if (name in factionsByName) return factionsByName[name];
+        else if (name.toLower in factionsByName) return factionsByName[name.toLower];
+        else throw new Exception("Faction "~name~" not found.");
+    }
+
     bool deleteUnit(Unit unit, bool destroy=false) { //Always set `destroy` to false when calling from the Unit destructor, to avoid an infinite loop.
         import std.algorithm.searching;
         UnitType[] shiftedUnits = allUnits.find(unit);
@@ -266,6 +282,9 @@ interface Map {
     Unit getOccupant(int x, int y);
     bool allTilesLoaded();
     bool deleteUnit(Unit unit, bool destroy);
+    Faction getFaction(string name);
+
+    void nextTurn();
 }
 
 ushort findAssignTextureID (string[] textureIndex, string textureName) {
