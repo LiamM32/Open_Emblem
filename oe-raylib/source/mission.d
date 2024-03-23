@@ -339,7 +339,9 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
             mousePosition = GetMousePosition();
             leftClick = IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT);
             this.offsetMap(mapView);
-            if (movingUnit !is null) movingUnit.stepTowards();
+            foreach (unit; allUnits) {
+                unit.stepTowards();
+            }
             BeginDrawing();
 
             drawTiles();

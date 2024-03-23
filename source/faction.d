@@ -30,6 +30,7 @@ class Faction
     this(string name, bool isPlayer=false, Map map) {
         this.name = name;
         this.isPlayer = isPlayer;
+        this.map = map;
     }
 
     void setAlliesEnemies(ref Faction[string] factionsByName) {
@@ -60,34 +61,48 @@ class NonPlayerFaction : Faction
     import tile;
     import std.algorithm.sorting;
     import std.array;
+    import item:canShoot;
 
     const ushort VIEWRANGE = 20;
 
     ushort[Unit][Unit] unitDistances;
+    MoveOption[][Tile] moveOptions;
 
     this(string name, Map map) {
         super(name, false, map);
     }
 
     override void turn() {
+        MoveOption[][Unit] moveOptions;
+
+        this.turnReset;
+
         foreach (unit; this.units) {
             debug writeln("Faction ", this.name, " has a unit called ", unit.name);
-            checkOptions(unit);
+            moveOptions[unit] ~= checkOptions(unit);
+
+            // Do movement. Will later be replaced by a weighted random selection.
+            {
+                MoveOption move = moveOptions[unit][0];
+                unit.move(move.dest.x, move.dest.y);
+                if (move.toAttack !is null) unit.attack(move.toAttack.getLocation.x, move.toAttack.getLocation.y);
+            }
         }
         debug assert(canFind(enemyNames, "player"));
-        debug writeln(this.name~" just took turn.");
+        debug writeln(this.name~" just finished turn.");
     }
 
-    void checkOptions(Unit unit) // This will soon return a struct value with options for moves
+    MoveOption[] checkOptions(Unit unit)
     {
         import std.range: array;
         
         Unit[] enemiesConsidered;
+        //short[Unit] enemyRisk;
         short[Tile] tileRiskReward;
         MoveOption[] moveOptions;
         
         {
-            uint lookRange = 2 * unit.Mv + unit.attackRange;
+            uint lookRange = 3 * unit.Mv + unit.attackRange;
             foreach(enemyFaction; enemies) foreach (enemyUnit; enemyFaction.units) {
                 unitDistances[unit][enemyUnit] = cast(ushort) measureDistance(unit.getLocation, enemyUnit.getLocation);
                 if (unitDistances[unit][enemyUnit] <= enemyUnit.Mv + lookRange) enemiesConsidered ~= enemyUnit;
@@ -95,35 +110,47 @@ class NonPlayerFaction : Faction
             enemiesConsidered.sort!((a,b) => unitDistances[unit][a] < unitDistances[unit][b]);
         }
 
-        {
+        foreach (tile; unit.getReachable!Tile) {
+            short score;
+            MoveOption[] tileMoveOptions;
+            AttackRisk[Unit] enemyAttackRisks;
             foreach (enemyUnit; enemiesConsidered) {
-                //if (distance > unit.MvRemaining + unit.attackRange) break;
-
-                //foreach (tile; unit.getReachable)
-
-                foreach (tile; overlap(unit.getReachable!Tile, enemyUnit.getAttackable!Tile)) {
-                    AttackRisk attackInfo = enemyUnit.getAttackRisk(unit);
-                    tileRiskReward[tile] -= attackInfo.damage;
-                    if (attackInfo.damage > unit.HP) tileRiskReward[tile] -= unit.HP>>1;
+                ushort distance = cast(ushort)measureDistance(tile.location, enemyUnit.getLocation);
+                if (canFind(enemyUnit.getAttackable!Tile, tile)) {
+                    enemyAttackRisks[enemyUnit] = enemyUnit.getAttackRisk(unit, distance);
+                    score -= enemyAttackRisks[enemyUnit].damage;
                 }
+                if (distance <= unit.attackRange && canShoot(unit.getLocation, enemyUnit.getLocation, map)) {
+                    tileMoveOptions ~= MoveOption(dest:tile, attackPotential:unit.getAttackRisk(enemyUnit, distance));
+                    tileMoveOptions[$-1].score += tileMoveOptions[$-1].attackPotential.damage;
+                    debug writeln(unit.name~" is in range of enemy "~enemyUnit.name);
+                }
+                // More to add or subtract score based on change in distance from enemy.
+            }
+            
+            if (tileMoveOptions.length == 0) tileMoveOptions ~= MoveOption(dest: tile);
+            foreach (moveOpt; tileMoveOptions) {
+                moveOpt.enemyAttackRisk = enemyAttackRisks;
+                moveOpt.score += score;
+                moveOptions ~= moveOpt;
             }
         }
 
-        //considerRunTowards(unit);
+        moveOptions.sort!((a,b) => a.score > b.score);
         
+        debug writeln(unit.name~" has ", moveOptions.length, " move options.");
+        debug foreach (ushort i, option; moveOptions) {
+            writeln("Option ",i," is to go to tile ",option.dest.location," and attack "~((option.toAttack is null) ? "no one" : option.toAttack.name));
+        }
+        
+        return moveOptions;
     }
 
-    /*void considerRunTowards(Unit unit) {
-        foreach (enemyUnit) {
-        }
-
-    }*/
-
     struct MoveOption {
-        Tile moveTo;
-        Unit opponent;
+        Tile dest;
+        Unit toAttack;
         AttackRisk attackPotential;
-        AttackRisk[1] enemyAttackRisk;
+        AttackRisk[Unit] enemyAttackRisk;
 
         short score;
     }

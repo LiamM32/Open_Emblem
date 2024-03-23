@@ -146,9 +146,7 @@ class Unit {
         this.ylocation = y;
         this.currentTile = this.map.getTile(x,y);
         
-        writeln(this.name ~ " location is now " ~ to!string(x) ~ ", " ~ to!string(y));
-        
-        writeln(this.map.getTile(x,y));
+        writeln(this.name ~" location is now "~to!string(x)~", "~to!string(y), this.map.getTile(x,y));
         this.map.getTile(x, y).setOccupant(this);
         
         if (runUpdateReach && this.map.allTilesLoaded()) this.updateReach();
@@ -180,6 +178,9 @@ class Unit {
         return true;
     }
 
+    AttackRisk getAttackRisk (Unit opponent, uint distance=2) {
+        return getAttackRisk (opponent, cast(ushort)distance);
+    }
     AttackRisk getAttackRisk (Unit opponent, ushort distance=2) {
         short damage = cast(short)((this.Str * this.Str)/(this.Str + opponent.Def));
         return AttackRisk(damage:damage);

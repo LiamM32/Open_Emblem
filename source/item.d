@@ -133,11 +133,18 @@ bool canShoot (Vector2i a, Vector2i b, Map map) {
     import std.algorithm;
     import std.math;
     debug import std.conv;
+    debug import std.stdio;
+
+    debug writeln("From ", a, " to ", b);
+    assert (map !is null);
 
     Vector2i trans = b - a;
     ushort diagSteps = cast(ushort) min(abs(trans.x), abs(trans.y));
     ushort orthSteps = cast(ushort)( max(abs(trans.x), abs(trans.y)) - diagSteps );
     Vector2i current = a;
+
+    if (a.x < 0 || a.y < 0 || a.x >= map.getWidth || a.y >= map.getLength) return false;
+    else if (abs(trans.x)<=1 && abs(trans.y)<=1) return true;
 
     Vector2i stepDiag = Vector2i(sgn(trans.x), sgn(trans.y));
     Vector2i stepOrtho = {0, 0};
