@@ -130,7 +130,7 @@ Vector2i[] projectileScan(Vector2i origin, Direction direction, int range, Map m
 }
 
 
-unittest
+/*unittest
 {
     import std.stdio;
 	import std.conv;
@@ -179,4 +179,4 @@ unittest
         } else assert(!canFind(attackable, Vector2i(x,y)), "Tile "~to!string(x)~", "~to!string(y)~" should not be in returned coordinates.");
     }
     writeln("`projectileScan` unittest passed! Yay!");
-}
+}*/

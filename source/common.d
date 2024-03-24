@@ -208,36 +208,3 @@ unittest
     assert(measureDistance(Vector2i(12,12), Vector2i(6,0)) == 30);
     writeln("`measureDistance` unittest passed.");
 }
-
-T[] cleanupArray(T)(T[] array) {
-    int skip = 0;
-    for (int k=0; k < array.length-skip; k++) {
-        if (array[k] is null) skip++;
-        array[k] = array[k+skip];
-    }
-    array.length -= skip;
-    return array;
-}
-
-/*unittest {
-    writeln("Starting cleanupArray unittest.");
-    import unit;
-
-    UnitStats stats = {Mv:8, isFlyer:false, MHP:60, Str:24, Def:14};
-    Unit[] units;
-    units ~= new Unit("Ron A", stats);
-    units ~= new Unit("Harry B", stats);
-    units ~= new Unit("Linda C", stats);
-    units ~= new Unit("Jamie D", stats);
-
-    assert(units[0].name == "Ron A");
-    assert(units[1].name == "Harry B");
-    assert(units[2].name == "Linda C");
-    assert(units[3].name == "Jamie D");
-
-    destroy(units[2]);
-    units = cleanupArray(units);
-    assert(units.length == 3, "`cleanupArray` function failed to delete the correct number.");
-    assert(units[2].name == "Jamie D");
-    writeln("`cleanupArray` unittest passed.");
-}*/

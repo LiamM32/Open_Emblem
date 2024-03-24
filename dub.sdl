@@ -11,6 +11,12 @@ excludedSourceFiles "source/loadData.d" "source/benchmark.d"
 
 configuration "regular" {
     targetType "sourceLibrary"
+    versions "moreCaching"
+}
+
+configuration "lessCaching" {
+    targetType "sourceLibrary"
+    versions "lessCaching"
 }
 
 configuration "benchmark" {

@@ -125,7 +125,7 @@ class NonPlayerFaction : Faction
             foreach (enemyUnit; enemiesConsidered) {
                 debug assert (enemyUnit !is null && enemyUnit.alive && enemyUnit.map == this.map && enemyUnit.currentTile.occupant == enemyUnit, "Enemy has been deleted.");
                 ushort distance = cast(ushort)measureDistance(tile.location, enemyUnit.getLocation);
-                if (canFind(enemyUnit.getAttackable!Tile, tile)) {
+                if (enemyUnit.getTileAccess(tile.location).tile == tile) {
                     enemyAttackPotentials[enemyUnit] = enemyUnit.getAttackPotential(unit, distance);
                     score -= enemyAttackPotentials[enemyUnit].damage;
                 }
@@ -136,6 +136,8 @@ class NonPlayerFaction : Faction
                 }
                 // More to add or subtract score based on change in distance from enemy.
             }
+
+            score -= unit.getTileAccess(tile.location).distance; // Temporary. Make further tiles less likely.
             
             if (tileMoveOptions.length == 0) tileMoveOptions ~= MoveOption(dest: tile);
             foreach (moveOpt; tileMoveOptions) {
@@ -149,7 +151,8 @@ class NonPlayerFaction : Faction
         
         debug writeln(unit.name~" has ", moveOptions.length, " move options.");
         debug foreach (ushort i, option; moveOptions) {
-            writeln("Option ",i," is to go to tile ",option.dest.location," and attack "~((option.toAttack is null) ? "no one" : option.toAttack.name));
+            write("Option ",i," is to go to tile ",option.dest.location," and attack "~((option.toAttack is null) ? "no one. " : option.toAttack.name));
+            writeln(". Score of ", option.score);
         }
         
         return moveOptions;

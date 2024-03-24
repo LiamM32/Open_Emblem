@@ -61,7 +61,6 @@ class Unit {
     }
 
     this(string name, UnitStats stats) {
-        this.setTileReachArraySize;
         this.name = name;
         this.Mv = stats.Mv;
         this.MvRemaining = this.Mv;
@@ -121,10 +120,10 @@ class Unit {
 
     ~this() {
         this.alive = false;
-        this.map.removeUnit(this);
-        this.faction.removeUnit(this);
+        if (this.map !is null) this.map.removeUnit(this);
+        if (this.faction !is null) this.faction.removeUnit(this);
         //writeln("Unit "~this.name~"has been deleted.");
-        this.currentTile.occupant = null;
+        if (this.currentTile !is null) this.currentTile.occupant = null;
     }
 
     void turnReset() {
@@ -144,18 +143,18 @@ class Unit {
                 break;
             }
         }
-        if (runUpdateReach) this.updateReach();
+        if (this.map.allTilesLoaded()) this.updateReach();
     }
     
-    void setLocation(int x, int y, bool runUpdateReach = true) { //runUpdateReach should be removed due to map.fullyLoaded being used instead. However, removing it causes a segfault.
+    void setLocation(int x, int y, const bool runUpdateReach = true) { //runUpdateReach should be removed due to map.fullyLoaded being used instead. However, removing it causes a segfault.
         this.xlocation = x;
         this.ylocation = y;
         this.currentTile = this.map.getTile(x,y);
         
-        writeln(this.name ~" location is now "~to!string(x)~", "~to!string(y), this.map.getTile(x,y));
+        writeln(this.name ~" location is now "~to!string(x)~", "~to!string(y));
         this.map.getTile(x, y).setOccupant(this);
         
-        if (runUpdateReach && this.map.allTilesLoaded()) this.updateReach();
+        if (/*runUpdateReach && */this.map.allTilesLoaded()) this.updateReach();
     }
 
     Vector2i getLocation() {
@@ -217,8 +216,10 @@ class Unit {
                 this.tileReach[x][y].tile = mapTile;
             }
         }
-        this.reachableTiles.length = 0;
-        this.attackableTiles.length = 0;
+        version (moreCaching) {
+            this.reachableTiles.length = 0;
+            this.attackableTiles.length = 0;
+        }
 
         updateReach(0, this.xlocation, this.ylocation, this.facing, lookahead);
         setAttackable(Vector2i(xlocation, ylocation), true);
@@ -234,7 +235,7 @@ class Unit {
         this.tileReach[x][y].directionTo = wentIn;
         if (distancePassed <= this.MvRemaining) {
             this.tileReach[x][y].reachable = true;
-            this.reachableTiles ~= &tileReach[x][y];
+            version (moreCaching) this.reachableTiles ~= &tileReach[x][y];
         }
         
         auto stickyness = this.map.getTile(x, y).stickyness;
@@ -285,54 +286,47 @@ class Unit {
         foreach(ref row; this.tileReach) row.length = this.map.getLength;
     }
 
-    TileAccess getReach(Vector2i location) {
+    TileAccess getTileAccess(Vector2i location) {
         if (location.x <= 0 && location.y <= 0 && location.x >= map.getWidth && location.y >= map.getLength) {
             return this.tileReach[location.x][location.y];
         } else return TileAccess(tile:null, measured:true, reachable:false, attackableNow:false, attackableAfter:false);
     }
     
-    TileAccess getReach(int x, int y) {
-        debug if (x<0 || x>=tileReach.length || y<0 || y>=tileReach[x].length) throw new Exception("Called getReach for non-existent location "~to!string(x)~", "~to!string(y));
+    TileAccess getTileAccess(int x, int y) {
+        debug if (x<0 || x>=tileReach.length || y<0 || y>=tileReach[x].length) throw new Exception("Called `getTileAccess` for non-existent location "~to!string(x)~", "~to!string(y));
         return this.tileReach[x][y];
     }
 
-    version (noCache) Vector2i[] getReachable(T)() {
+    version (noCache) T[] getReachable(T)() {
         T[] reachableTiles;
         foreach (int x, row; this.tileReach) {
             foreach (int y, tileAccess; row) {
-                static if (T==Vector2i) reachableTiles ~= Vector2i(x, y);
-                static if (T==TileAccess) reachableTiles ~= tileAccess;
+                static if (is(T==Tile)) reachableTiles ~= tileAccess.tile;
+                static if (is(T==Vector2i)) reachableTiles ~= Vector2i(x, y);
+                static if (is(T==TileAccess)) reachableTiles ~= tileAccess;
             }
         }
         return reachableTiles;
     }
 
     version (moreCaching) {
-        TileAccess*[] getReachable(T)() if (is(T==TileAccess)) {
-            return reachableTiles;
-        }
-        Tile[] getReachable(T)() if (is(T==Tile)) {
-            Tile[] tiles;
-            foreach (tileAccess; this.reachableTiles) tiles ~= tileAccess.tile;
+        T[] getReachable(T)() {
+            T[] tiles;
+            foreach (tileAccess; this.reachableTiles) {
+                static if (is(T==TileAccess)) tiles ~= *tileAccess;
+                static if (is(T==Tile)) tiles ~= tileAccess.tile;
+                static if (is(T==Vector2i)) tiles ~= tileAccess.tile.location;
+            }
             return tiles;
         }
-        Vector2i[] getReachable(T)() if (is(T==Vector2i)) {
-            Tile[] tiles;
-            foreach (tileAccess; this.reachableTiles) tiles ~= Vector2i(tileAccess.tile.x, tileAccess.tile.y);
-            return tiles;
-        }
-
-        TileAccess*[] getAttackable(T)() if (is(T==TileAccess)) {
-            return attackableTiles;
-        }
-        Tile[] getAttackable(T)() if (is(T==Tile)) {
-            Tile[] tiles;
-            foreach (tileAccess; this.attackableTiles) tiles ~= tileAccess.tile;
-            return tiles;
-        }
-        Vector2i[] getAttackable(T)() if (is(T==Vector2i)) {
-            Tile[] tiles;
-            foreach (tileAccess; this.attackableTiles) tiles ~= Vector2i(tileAccess.tile.x, tileAccess.tile.y);
+        
+        T[] getAttackable(T)() {
+            T[] tiles;
+            foreach (tileAccess; this.attackableTiles) {
+                static if (is(T==TileAccess)) tiles ~= *tileAccess;
+                static if (is(T==Tile)) tiles ~= tileAccess.tile;
+                static if (is(T==Vector2i)) tiles ~= tileAccess.tile.location;
+            }
             return tiles;
         }
     }
@@ -359,7 +353,7 @@ class Unit {
         Direction directionTo = thisTileAccess.directionTo;
         if (map.getTile(destination)==this.currentTile) return [];
         else path = getPath(offsetByDirection(directionTo+4, destination));
-        path ~= getReach(destination);
+        path ~= getTileAccess(destination);
         return path;
     }
 
@@ -398,11 +392,11 @@ struct AttackPotential {
     short damage;
 }
 
-template UnitArrayManagement(alias Unit[] unitsArray, T=Unit) {
+template UnitArrayManagement(alias Unit[] unitsArray) {
     bool removeUnit(Unit unit) {
         import std.algorithm.searching;
         writeln("Doing `Map.removeUnit`");
-        T[] shiftedUnits = unitsArray.find(unit);
+        Unit[] shiftedUnits = unitsArray.find(unit);
         ushort unitKey = cast(ushort)(unitsArray.length - shiftedUnits.length);
         debug {
             writeln("unitsArray: ");
@@ -465,7 +459,7 @@ unittest
         debug writeln("Starting Unit caching unittest.");
         unitA.setLocation(5, 5, true);
 
-        TileAccess*[] reachableTiles = unitA.getReachable!TileAccess;
+        TileAccess[] reachableTiles = unitA.getReachable!TileAccess;
         Vector2i[] reachableCoords;
         foreach (tileAccess; reachableTiles) {
             reachableCoords ~= Vector2i(tileAccess.tile.x, tileAccess.tile.y);

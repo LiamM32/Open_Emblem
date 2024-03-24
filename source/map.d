@@ -17,7 +17,6 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
     protected TileType[][] grid;
     protected ushort gridWidth;
     protected ushort gridLength;
-    protected string[] textureIndex;
     public bool fullyLoaded = false;
     protected GamePhase phase = GamePhase.Loading;
     public int turn;
@@ -258,20 +257,6 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
         } else return false;
     }
 
-    string[] getTextureIndex() {
-        return this.textureIndex;
-    }
-
-    ushort findAssignTextureID (string textureName) { // Consider removing this.
-        import std.conv;
-        ushort i;
-        for (i=0; i<this.textureIndex.length; i++) {
-            if (textureIndex[i] == textureName) return i;
-        }
-        this.textureIndex ~= textureName;
-        return cast(ushort)(this.textureIndex.length - 1);
-    }
-
     bool checkObstruction (Vector2i a, Vector2i b) { // Returns true if the tightest path between two points is unobstructed.
         import std.algorithm;
         import std.math;
@@ -356,19 +341,6 @@ interface Map {
     bool checkObstruction(Vector2i origin, Vector2i destination);
 }
 
-ushort findAssignTextureID (string[] textureIndex, string textureName) {
-    import std.conv;
-    ushort i;
-    for (i=0; i<textureIndex.length; i++) {
-        if (textureIndex[i] == textureName) return i;
-    }
-    textureIndex ~= textureName;
-    writeln("i = " ~ to!string(i));
-    writeln("textureIndex.length = " ~ to!string(textureIndex.length-1));
-    writeln(textureIndex);
-    return cast(ushort)(textureIndex.length - 1);
-}
-
 enum GamePhase : ubyte {
     Loading,
     Preparation,
@@ -390,7 +362,44 @@ unittest
     map.allUnits ~= unitA;
     map.allUnits ~= unitB;
     map.allUnits ~= unitC;
-    map.deleteUnit(unitB, true);
+    destroy(unitB);
     assert(map.allUnits == [unitA, unitC], "Map.deleteUnit function did not work as expected.");
     writeln("Map unittest 1 passed.");
+}
+
+unittest
+{
+    import std.algorithm.searching;
+    import std.traits;
+    debug writeln("Starting Map.checkObstruction unittest");
+    const Vector2i origin = Vector2i(12, 12);
+    const int range = 12;
+
+    Map map;
+    {
+        Tile[][] grid;
+        grid.length = 25;
+        for (uint x=0; x<25; x++) for (uint y=0; y<25; y++) {
+            if (x==9 && y==11) grid[x] ~= new Tile(x, y, false, false, false, 0);
+            else grid[x] ~= new Tile(true, true, true, 0);
+        }
+        map = new MapTemp!(Tile, Unit)("test", grid);
+    }
+    
+    const Vector2i[] shouldAttackable = [Vector2i(10,11), Vector2i(9,10), Vector2i(9,9), Vector2i(8,8)];
+    
+    const Vector2i[] shouldBlocked = [Vector2i(9,11), Vector2i(7,10), Vector2i(6,10)];
+
+    foreach(int x, row; map.getGrid) foreach(int y, tile; row) {
+        Vector2i location = {x, y};
+        if (measureDistance(origin, Vector2i(x,y)) <= range && Vector2i(x,y) != origin) {
+            if (canFind(shouldBlocked, location)) {
+                assert(!map.checkObstruction(Vector2i(12,12), Vector2i(x,y)), "Tile "~to!string(x)~", "~to!string(y)~" should be blocked.");
+            }
+            else if (x >= 12 || y >= 12 || x >= y || canFind(shouldAttackable, location)) {
+                assert(map.checkObstruction(Vector2i(12,12), Vector2i(x,y)), "Tile "~to!string(x)~", "~to!string(y)~" should not be blocked.");
+            }
+        } else assert(!canFind(shouldAttackable, Vector2i(x,y)), "Tile "~to!string(x)~", "~to!string(y)~" should not be in returned coordinates.");
+    }
+    writeln("`Map.checkObstruction` unittest passed.");
 }

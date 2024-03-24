@@ -346,15 +346,15 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
             drawTiles();
             foreach (uint gridx, row; this.grid) {
                 foreach (uint gridy, tile; row) {
-                    if (playerAction == Action.Move && selectedUnit.getReach(gridx,gridy).reachable) {
+                    if (playerAction == Action.Move && selectedUnit.getTileAccess(gridx,gridy).reachable) {
                         DrawRectangleRec(tile.getRect(offset), Color(60, 240, 120, 30));
-                        debug DrawTextureEx(arrow, Vector2(cast(float)(gridx*TILEWIDTH+32), cast(float)(gridy*TILEWIDTH+32)), cast(float)selectedUnit.getReach(gridx,gridy).directionTo.getAngle, 1.0f, Color(120, 240, 120, 60));
+                        debug DrawTextureEx(arrow, Vector2(cast(float)(gridx*TILEWIDTH+32), cast(float)(gridy*TILEWIDTH+32)), cast(float)selectedUnit.getTileAccess(gridx,gridy).directionTo.getAngle, 1.0f, Color(120, 240, 120, 60));
                         if(leftClick && CheckCollisionPointRec(mousePosition, tile.getRect(offset))) {
                             selectedUnit.move(gridx, gridy);
                             movingUnit = cast(VisibleUnit)selectedUnit;
                             playerAction = Action.Nothing;
                         }
-                    } else if (playerAction == Action.Attack && selectedUnit.getReach(gridx,gridy).attackableNow) {
+                    } else if (playerAction == Action.Attack && selectedUnit.getTileAccess(gridx,gridy).attackableNow) {
                         if (tile.occupant !is null) {
                             DrawRectangleRec(tile.getRect(offset), Color(240, 60, 60, 60));
                         } else DrawRectangleRec(tile.getRect(offset), Color(200, 60, 60, 30));
@@ -373,7 +373,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                                 if (updateOnClick) this.selectedUnit.updateReach();
                             }
                             if (this.selectedUnit !is null) {
-                                if (this.selectedUnit.getReach(gridx, gridy).reachable) {
+                                if (this.selectedUnit.getTileAccess(gridx, gridy).reachable) {
                                     DrawRectangleRec(tile.getRect(offset), Color(100, 100, 245, 32));
                                 }
                             }
