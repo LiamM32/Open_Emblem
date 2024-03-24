@@ -124,7 +124,6 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         debug writeln("Opened Units.json");
         foreach (uint k, unitData; playerUnitsData.array) {
             VisibleUnit unit = new VisibleUnit(this, unitData, factionsByName["player"]);//loadUnitFromJSON(unitData, spriteIndex, false);
-            unit.map = this;
             availableUnits ~= unit;
             unitCards[unit] = new UnitInfoCard(unit, k*258, GetScreenHeight()-88);
         }
@@ -139,7 +138,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
 
         version (Fluid) {
             Label startButton = button("Start Mission", delegate {
-                this.nextTurn();
+                this.endTurn();
             });
         } else version (raygui) {
             Rectangle startButton = {x:GetScreenWidth()-160, y:menuBox.y-16, width:160, height:32};
@@ -282,7 +281,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
             }
         }
 
-        this.nextTurn;
+        this.endTurn;
     }
 
     void playerTurn() {
@@ -327,13 +326,13 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
 
         MenuList!Item itemsList;
         
-        enum Action:ubyte {Nothing, Move, Attack, Items};
+        enum Action:ubyte {Nothing, Move, Attack, Items, EndTurn};
         Action playerAction = Action.Nothing;
 
         VisibleUnit movingUnit = null;
         debug Texture arrow = LoadTexture("../sprites/arrow.png");
 
-        while(!WindowShouldClose())
+        while(!WindowShouldClose() && playerAction != Action.EndTurn)
         {
             debug if (playerAction != Action.Nothing && selectedUnit is null) throw new Exception ("`playerAction is not set to `Nothing`, but `selectedUnit` is null.");
             mousePosition = GetMousePosition();
@@ -367,9 +366,10 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                     }
                     if (CheckCollisionPointRec(mousePosition, tile.getRect(offset))) {
                         if (tile.occupant !is null) { // This should later be filtered for only enemy factions.
-                            if (leftClick && playerAction == Action.Nothing) {
+                            if (leftClick && playerAction == Action.Nothing && tile.occupant.faction == factionsByName["player"]) {
                                 this.selectedUnit = tile.occupant;
                                 this.selectedUnit.updateReach;
+                                debug writeln(selectedUnit.name~" is of faction "~selectedUnit.faction.name);
                                 if (updateOnClick) this.selectedUnit.updateReach();
                             }
                             if (this.selectedUnit !is null) {
@@ -377,13 +377,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                                     DrawRectangleRec(tile.getRect(offset), Color(100, 100, 245, 32));
                                 }
                             }
-                        } /*else {
-                            if(playerAction == Action.Move && leftClick && selectedUnit.getReach(gridx,gridy).reachable) {
-                                selectedUnit.move(gridx, gridy);
-                                movingUnit = cast(VisibleUnit)selectedUnit;
-                                playerAction = Action.Nothing;
-                            }
-                        }*/
+                        }
                         if (!onButton) DrawRectangleRec(tile.getRect(offset), Colours.Highlight);
                     }
                 }
@@ -441,9 +435,9 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                 if (remaining < 3) {
                     version (customgui) {
                         finishButton.draw;
-                        if (finishButton.button(onButton)) break;
+                        if (finishButton.button(onButton)) playerAction = Action.EndTurn;
                     } version (raygui) {
-                        if (GuiButton(finishButton, "Finish turn".toStringz)) break;
+                        if (GuiButton(finishButton, "Finish turn".toStringz)) playerAction = Action.EndTurn;
                     }
                 }
             }
@@ -451,7 +445,8 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
             EndDrawing();
         }
 
-        this.nextTurn();
+        selectedUnit = null;
+        endTurn();
     }
 
     void drawTiles() {

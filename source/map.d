@@ -84,7 +84,7 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
         import std.uni: toLower;
         import std.algorithm.searching;
         
-        this.factions ~= new Faction(name:"Player");
+        this.factions ~= new Faction(name:"Player", isPlayer:true, map:this);
         this.factionsByName["player"] = this.factions[$-1];
         if ("factions" in mapData) {
             foreach (factionData; mapData.object["factions"].array) {
@@ -114,10 +114,10 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
             }
             return true;
         } else {
-            this.factions ~= new Faction(name:"Player");
-            this.factionsByName["player"] = this.factions[$-1];
-            this.factions ~= new Faction(name: "Enemy");
-            this.factionsByName["enemy"] = this.factions[$-1];
+            factions ~= new Faction(name: "Enemy");
+            factionsByName["enemy"] = factions[$-1];
+            factionsByName["enemy"].enemies ~= factionsByName["player"];
+            factionsByName["player"].enemies ~= factionsByName["enemies"];
             return false;
         }
 
@@ -166,16 +166,16 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
         return true;
     }
 
-    void nextTurn() {
+    void endTurn() {
         if (this.phase == GamePhase.Preparation) this.turn = 0; //Change this later so that the faction with the first turn is determined by the map file.
-        else if (this.turn >= this.factions.length-1) turn = 0;
         else turn++;
+        if (this.turn >= this.factions.length-1) turn = 0;
 
         if (this.factions[this.turn].isPlayer) this.phase = GamePhase.PlayerTurn;
         else this.phase = GamePhase.NonPlayerTurn;
     }
 
-    void turnReset() {
+    void turnReset() { // Only call this if all factions should be reset.
         import std.conv;
         
         foreach(unit; this.allUnits) {
@@ -184,7 +184,7 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
         }
     }
 
-    void turnReset(string faction) {
+    void turnReset(string faction) { // Delete this later
         foreach(unit; this.factionsByName[faction].units) {
             unit.turnReset;
         }
@@ -199,7 +199,8 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
     }
     
     Tile getTile(int x, int y) {
-        return this.grid[x][y];
+        if (x >= 0 && x < this.grid.length && y >= 0 && y < this.grid[0].length) return this.grid[x][y];
+        else throw new Exception("Tile "~to!string(x)~", "~to!string(y)~" does not exist.");
     }
 
     Tile[][] getGrid() {
@@ -243,7 +244,7 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
         else throw new Exception("Faction "~name~" not found.");
     }
 
-    bool deleteUnit(Unit unit, bool destroy=false) { //Always set `destroy` to false when calling from the Unit destructor, to avoid an infinite loop.
+    bool removeUnit(Unit unit) { //Should later be replaced with the one in the `UnitArrayManagement` template
         import std.algorithm.searching;
         UnitType[] shiftedUnits = allUnits.find(unit);
         ushort unitKey = cast(ushort)(allUnits.length - shiftedUnits.length);
@@ -261,7 +262,7 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
         return this.textureIndex;
     }
 
-    ushort findAssignTextureID (string textureName) {
+    ushort findAssignTextureID (string textureName) { // Consider removing this.
         import std.conv;
         ushort i;
         for (i=0; i<this.textureIndex.length; i++) {
@@ -269,6 +270,72 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
         }
         this.textureIndex ~= textureName;
         return cast(ushort)(this.textureIndex.length - 1);
+    }
+
+    bool checkObstruction (Vector2i a, Vector2i b) { // Returns true if the tightest path between two points is unobstructed.
+        import std.algorithm;
+        import std.math;
+        debug import std.conv;
+        debug import std.stdio;
+
+        Vector2i trans = b - a;
+        ushort diagSteps = cast(ushort) min(abs(trans.x), abs(trans.y));
+        ushort orthSteps = cast(ushort)(max(abs(trans.x), abs(trans.y)) - diagSteps);
+        Vector2i current = a;
+
+        if (a.x < 0 || a.y < 0 || a.x >= this.gridWidth || a.y >= this.gridLength) return false;
+        else if (abs(trans.x)<=1 && abs(trans.y)<=1) return true;
+
+        Vector2i stepDiag = Vector2i(sgn(trans.x), sgn(trans.y));
+        Vector2i stepOrtho = {0, 0};
+        if (abs(trans.x) > abs(trans.y)) stepOrtho.x = stepDiag.x;
+        else if (abs(trans.y) > (trans.x)) stepOrtho.y = stepDiag.y;
+
+        bool pathFound = false;
+
+        void tracePath(ushort straightSteps, ushort skews, Vector2i stepStraight, Vector2i stepSkew) {
+            current = a;
+            uint steplength1 = 1;
+            uint remainder = 0;
+            {
+                uint div = max(1, skews);
+                steplength1 = straightSteps / div;
+                remainder = straightSteps % div;
+            }
+            uint steplength2 = steplength1 >> 1;
+            steplength1 -= steplength2;
+            bool sym = steplength1 == steplength2;
+
+            orthogonalFirst:
+            for (ushort cycle=0; cycle<max(1, skews); cycle++) {
+                for (ushort stp=0; stp<(steplength1); stp++) {
+                    current += stepStraight;
+                    if (!grid[current.x][current.y].allowShoot) goto Exit;
+                }
+                if (sym && cycle < remainder) {
+                    current += stepStraight;
+                    if (!grid[current.x][current.y].allowShoot) goto Exit;
+                }
+                if (skews>0) current += stepSkew;
+                if (!sym && cycle < remainder) {
+                    current += stepStraight;
+                    if (!grid[current.x][current.y].allowShoot) goto Exit;
+                }
+                if (!getTile(current).allowShoot) goto Exit;
+                for (ushort stp=0; stp<steplength2; stp++) {
+                    current += stepStraight;
+                    if (!grid[current.x][current.y].allowShoot) goto Exit;
+                }
+            }
+            debug assert (current == b, "`current` = "~to!string(current.x)~", "~to!string(current.y)~". It should be "~to!string(b.x)~", "~to!string(b.y));
+            if (current == b) pathFound = true;
+            Exit:
+        }
+
+        if (!pathFound && diagSteps >= orthSteps) tracePath(diagSteps, orthSteps, stepDiag, stepOrtho);
+        if (!pathFound && orthSteps >= diagSteps) tracePath(orthSteps, diagSteps, stepOrtho, stepDiag);
+
+        return pathFound;
     }
 }
 
@@ -281,10 +348,12 @@ interface Map {
     Vector2i getSize();
     Unit getOccupant(int x, int y);
     bool allTilesLoaded();
-    bool deleteUnit(Unit unit, bool destroy);
+    bool removeUnit(Unit unit);
     Faction getFaction(string name);
 
-    void nextTurn();
+    void endTurn();
+
+    bool checkObstruction(Vector2i origin, Vector2i destination);
 }
 
 ushort findAssignTextureID (string[] textureIndex, string textureName) {

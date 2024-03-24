@@ -17,6 +17,8 @@ class Faction
     Faction[] enemies;
     bool isPlayer;
 
+    mixin UnitArrayManagement!units;
+
     version (signals) {
         Signal!() move;
         Signal!() startTurn;
@@ -45,14 +47,17 @@ class Faction
     }
 
     void turnReset() {
+        debug if (this.units.length == 0) throw new Exception("Faction "~this.name~" has no units");
         version (signals) startTurn.emit;
         else foreach (unit; this.units) {
+            if (unit is null) throw new Exception("Faction "~this.name~" has a null Unit reference.");
+            else writeln(unit.name~" is being reset.");
             unit.turnReset();
         }
     }
 
     void turn() {
-        map.nextTurn;
+        map.endTurn;
     }
 }
 
@@ -61,12 +66,10 @@ class NonPlayerFaction : Faction
     import tile;
     import std.algorithm.sorting;
     import std.array;
-    import item:canShoot;
 
     const ushort VIEWRANGE = 20;
 
     ushort[Unit][Unit] unitDistances;
-    MoveOption[][Tile] moveOptions;
 
     this(string name, Map map) {
         super(name, false, map);
@@ -78,6 +81,7 @@ class NonPlayerFaction : Faction
         this.turnReset;
 
         foreach (unit; this.units) {
+            debug assert (unit !is null);
             debug writeln("Faction ", this.name, " has a unit called ", unit.name);
             moveOptions[unit] ~= checkOptions(unit);
 
@@ -90,6 +94,8 @@ class NonPlayerFaction : Faction
         }
         debug assert(canFind(enemyNames, "player"));
         debug writeln(this.name~" just finished turn.");
+
+        map.endTurn;
     }
 
     MoveOption[] checkOptions(Unit unit)
@@ -110,27 +116,30 @@ class NonPlayerFaction : Faction
             enemiesConsidered.sort!((a,b) => unitDistances[unit][a] < unitDistances[unit][b]);
         }
 
+        debug writeln("Length of enemiesConsidered for "~unit.name~" is ", enemiesConsidered.length);
+
         foreach (tile; unit.getReachable!Tile) {
             short score;
             MoveOption[] tileMoveOptions;
-            AttackRisk[Unit] enemyAttackRisks;
+            AttackPotential[Unit] enemyAttackPotentials;
             foreach (enemyUnit; enemiesConsidered) {
+                debug assert (enemyUnit !is null && enemyUnit.alive && enemyUnit.map == this.map && enemyUnit.currentTile.occupant == enemyUnit, "Enemy has been deleted.");
                 ushort distance = cast(ushort)measureDistance(tile.location, enemyUnit.getLocation);
                 if (canFind(enemyUnit.getAttackable!Tile, tile)) {
-                    enemyAttackRisks[enemyUnit] = enemyUnit.getAttackRisk(unit, distance);
-                    score -= enemyAttackRisks[enemyUnit].damage;
+                    enemyAttackPotentials[enemyUnit] = enemyUnit.getAttackPotential(unit, distance);
+                    score -= enemyAttackPotentials[enemyUnit].damage;
                 }
-                if (distance <= unit.attackRange && canShoot(unit.getLocation, enemyUnit.getLocation, map)) {
-                    tileMoveOptions ~= MoveOption(dest:tile, attackPotential:unit.getAttackRisk(enemyUnit, distance));
+                if (distance <= unit.attackRange && map.checkObstruction(unit.getLocation, enemyUnit.getLocation)) {
+                    tileMoveOptions ~= MoveOption(dest:tile, toAttack:enemyUnit, attackPotential:unit.getAttackPotential(enemyUnit, distance));
                     tileMoveOptions[$-1].score += tileMoveOptions[$-1].attackPotential.damage;
-                    debug writeln(unit.name~" is in range of enemy "~enemyUnit.name);
+                    debug writeln(unit.name~" is in range to attack enemy "~enemyUnit.name);
                 }
                 // More to add or subtract score based on change in distance from enemy.
             }
             
             if (tileMoveOptions.length == 0) tileMoveOptions ~= MoveOption(dest: tile);
             foreach (moveOpt; tileMoveOptions) {
-                moveOpt.enemyAttackRisk = enemyAttackRisks;
+                moveOpt.enemyAttackPotential = enemyAttackPotentials;
                 moveOpt.score += score;
                 moveOptions ~= moveOpt;
             }
@@ -149,8 +158,8 @@ class NonPlayerFaction : Faction
     struct MoveOption {
         Tile dest;
         Unit toAttack;
-        AttackRisk attackPotential;
-        AttackRisk[Unit] enemyAttackRisk;
+        AttackPotential attackPotential;
+        AttackPotential[Unit] enemyAttackPotential;
 
         short score;
     }

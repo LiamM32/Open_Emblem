@@ -117,19 +117,25 @@ class Unit {
         }
     }
 
+    bool alive = true;
+
     ~this() {
-        this.map.deleteUnit(this, false);
+        this.alive = false;
+        this.map.removeUnit(this);
+        this.faction.removeUnit(this);
         //writeln("Unit "~this.name~"has been deleted.");
+        this.currentTile.occupant = null;
     }
 
     void turnReset() {
         this.hasActed = false;
         this.finishedTurn = false;
         this.MvRemaining = this.Mv;
+        debug assert (this.currentTile.occupant == this, "Unit "~this.name~": `this.currentTile.occupant != this`");
         updateReach();
     }
     
-    void setLocation(Tile destination, bool runUpdateReach) {
+    void setLocation(Tile destination, const bool runUpdateReach) {
         destination.setOccupant(this);
         foreach (int x, row; this.map.getGrid) {
             foreach (int y, someTile; row) if (someTile == destination) {
@@ -167,23 +173,22 @@ class Unit {
     }
 
     bool attack (uint x, uint y) {
-        if (currentWeapon !is null || !tileReach[x][y].attackableNow /*> this.currentWeapon.range*/) return false;
-        if (this.map.getTile(x, y).occupant is null) return false;
+        if ((map.getTile(x, y).occupant !is null) &&
+            (measureDistance(this.getLocation, Vector2i(x,y)) <= attackRange) &&
+            map.checkObstruction(this.getLocation, Vector2i(x,y))
+            ) {
+            Unit opponent = this.map.getTile(x, y).occupant;
+            opponent.receiveDamage((this.Str * this.Str)/(this.Str + opponent.Def));
 
-        Unit opponent = this.map.getTile(x, y).occupant;
-        opponent.receiveDamage((this.Str * this.Str)/(this.Str + opponent.Def));
+            this.hasActed = true;
 
-        this.hasActed = true;
-
-        return true;
+            return true;
+        } else return false;
     }
 
-    AttackRisk getAttackRisk (Unit opponent, uint distance=2) {
-        return getAttackRisk (opponent, cast(ushort)distance);
-    }
-    AttackRisk getAttackRisk (Unit opponent, ushort distance=2) {
+    AttackPotential getAttackPotential (Unit opponent, uint distance=2) {
         short damage = cast(short)((this.Str * this.Str)/(this.Str + opponent.Def));
-        return AttackRisk(damage:damage);
+        return AttackPotential(damage:damage);
     }
 
     void receiveDamage(int damage) {
@@ -192,6 +197,14 @@ class Unit {
         if (this.HP < 0) {
             writeln(this.name~" has fallen.");
             destroy(this);
+        }
+    }
+
+    ushort attackRange() {
+        if (currentWeapon !is null) {
+            return currentWeapon.range;
+        } else {
+            return 2;
         }
     }
 
@@ -328,14 +341,6 @@ class Unit {
         return this.MvRemaining >= 2;
     }
 
-    ushort attackRange() {
-        if (currentWeapon !is null) {
-            return currentWeapon.range;
-        } else {
-            return 2;
-        }
-    }
-
     UnitStats getStats() {
         UnitStats stats;
         stats.Mv = this.Mv;
@@ -389,9 +394,35 @@ struct UnitStats {
     uint Def;
 }
 
-struct AttackRisk {
+struct AttackPotential {
     short damage;
 }
+
+template UnitArrayManagement(alias Unit[] unitsArray, T=Unit) {
+    bool removeUnit(Unit unit) {
+        import std.algorithm.searching;
+        writeln("Doing `Map.removeUnit`");
+        T[] shiftedUnits = unitsArray.find(unit);
+        ushort unitKey = cast(ushort)(unitsArray.length - shiftedUnits.length);
+        debug {
+            writeln("unitsArray: ");
+            foreach (listedUnit; unitsArray) writeln(listedUnit.name~", ");
+            writeln("shiftedUnits: ");
+            foreach (listedUnit; shiftedUnits) writeln(listedUnit.name~", ");
+        }
+        if (shiftedUnits.length > 0) {
+            debug writeln("shiftedUnits.length > 0");
+            unitsArray[$-shiftedUnits.length] = null;
+            for (ushort i=0; i<shiftedUnits.length-1; i++) {
+                debug writeln("In loop. unitKey = ", unitKey, ", i = ", i);
+                unitsArray[unitKey+i] = unitsArray[unitKey+i+1];
+            }
+            unitsArray.length--;
+            return true;
+        } else return false;
+    }
+}
+
 
 unittest //Currently incomplete test of attack damage
 {

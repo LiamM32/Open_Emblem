@@ -26,6 +26,8 @@ class VisibleUnit : Unit
         if (!spritePath.endsWith(".png")) spritePath ~= ".png";
         writeln("Sprite for unit "~this.name~" is "~spritePath);
         this.sprite = LoadTexture(spritePath.toStringz);
+
+        if (this.faction is null) this.faction = faction;
     }
 
     override void turnReset() {
