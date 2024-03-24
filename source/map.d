@@ -9,12 +9,10 @@ import unit;
 import common;
 import faction;
 
-alias PlainMap = MapTemp!(Tile, Unit);
-
-class MapTemp (TileType:Tile, UnitType:Unit) : Map {
+class Map {
     public string name;
     
-    protected TileType[][] grid;
+    protected Tile[][] grid;
     protected ushort gridWidth;
     protected ushort gridLength;
     public bool fullyLoaded = false;
@@ -23,13 +21,13 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
 
     public Faction[] factions;
     public Faction[string] factionsByName;
-    public UnitType[] allUnits;
+    public Unit[] allUnits;
 
     this(string name) {
         this.name = name;
     }
     
-    static if (is(TileType==Tile)) this(ushort width, ushort length) {
+    static if (is(Tile==Tile)) this(ushort width, ushort length) {
         this.grid.length = width;
         foreach (x; 0 .. width) {
             this.grid[x].length = length;
@@ -42,7 +40,7 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
         this.fullyLoaded = true;
     }
 
-    this(string name, TileType[][] grid) {
+    this(string name, Tile[][] grid) {
         this.name = name;
         this.grid = grid;
         this.gridWidth = cast(ushort)grid.length;
@@ -73,7 +71,7 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
                 int stickiness = tile["stickiness"].get!int;
                 string textureName = tile["tile_sprite"].get!string;
                 ushort textureID = this.findAssignTextureID(textureName);
-                this.grid[x][y] = new TileType(x, y, tileName, allowStand, allowFly, stickiness, textureID, textureName);
+                this.grid[x][y] = new Tile(x, y, tileName, allowStand, allowFly, stickiness, textureID, textureName);
             }
         }
         this.fullyLoaded = true;
@@ -245,7 +243,7 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
 
     bool removeUnit(Unit unit) { //Should later be replaced with the one in the `UnitArrayManagement` template
         import std.algorithm.searching;
-        UnitType[] shiftedUnits = allUnits.find(unit);
+        Unit[] shiftedUnits = allUnits.find(unit);
         ushort unitKey = cast(ushort)(allUnits.length - shiftedUnits.length);
         if (shiftedUnits.length > 0) {
             this.allUnits[$-shiftedUnits.length] = null;
@@ -322,23 +320,6 @@ class MapTemp (TileType:Tile, UnitType:Unit) : Map {
 
         return pathFound;
     }
-}
-
-interface Map {
-    Tile getTile(Vector2i);
-    Tile getTile(int x, int y);
-    Tile[][] getGrid();
-    uint getWidth();
-    uint getLength();
-    Vector2i getSize();
-    Unit getOccupant(int x, int y);
-    bool allTilesLoaded();
-    bool removeUnit(Unit unit);
-    Faction getFaction(string name);
-
-    void endTurn();
-
-    bool checkObstruction(Vector2i origin, Vector2i destination);
 }
 
 enum GamePhase : ubyte {

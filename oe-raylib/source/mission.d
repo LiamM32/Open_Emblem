@@ -24,7 +24,7 @@ import ui;
 
 const bool updateOnClick = false;
 
-class Mission : MapTemp!(VisibleTile, VisibleUnit)
+class Mission : Map
 {
     Texture2D[] sprites;
     Texture2D gridMarker;
@@ -81,8 +81,8 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
                     else faction = this.factions[1];
                     VisibleUnit occupyingUnit = new VisibleUnit(this, tileData["Unit"]);
                     writeln("New unit "~occupyingUnit.name~" is part of the "~faction.name~" faction.");
-                    this.allUnits ~= occupyingUnit;
-                    faction.units ~= occupyingUnit;
+                    this.allUnits ~= cast(Unit) occupyingUnit;
+                    faction.units ~= cast(Unit) occupyingUnit;
                     occupyingUnit.setLocation(x, y);
                 } else if ("Player Unit" in tileData) {
                     this.grid[x][y].startLocation = true;
@@ -270,16 +270,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         }
         this.startingPoints.length = 0;
 
-        foreach (unit; this.allUnits) unit.verify();
-        debug {
-            foreach (uint x, row; this.grid) {
-                foreach (uint y, tile; row) {
-                    assert(tile.occupant is null || tile == tile.occupant.currentTile);
-                    assert(tile.x == x);
-                    assert(tile.y == y);
-                }
-            }
-        }
+        debug verifyEverything;
 
         this.endTurn;
     }
@@ -338,13 +329,13 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
             mousePosition = GetMousePosition();
             leftClick = IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT);
             this.offsetMap(mapView);
-            foreach (unit; allUnits) {
+            foreach (unit; cast(VisibleUnit[]) allUnits) {
                 unit.stepTowards();
             }
             BeginDrawing();
 
             drawTiles();
-            foreach (uint gridx, row; this.grid) {
+            foreach (uint gridx, row; cast(VisibleTile[][]) grid) {
                 foreach (uint gridy, tile; row) {
                     if (playerAction == Action.Move && selectedUnit.getTileAccess(gridx,gridy).reachable) {
                         DrawRectangleRec(tile.getRect(offset), Color(60, 240, 120, 30));
@@ -450,7 +441,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
     }
 
     void drawTiles() {
-        foreach (uint x, row; this.grid) {
+        foreach (uint x, row; cast(VisibleTile[][]) grid) {
             foreach (uint y, tile; row) {
                 DrawTextureV(*tile.sprite, tile.getDestination(offset), Colors.WHITE);
             }
@@ -463,7 +454,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
         
         float sinwave = 80*(sin(cast(float)time/300.0f)+1.0);
         int opacity = sinwave.to!int + 20;
-        foreach (uint x, row; this.grid) {
+        foreach (uint x, row; cast(VisibleTile[][]) grid) {
             foreach (uint y, tile; row) {
                 DrawTextureV(this.gridMarker, tile.getDestination(offset), Color(10,10,10, cast(ubyte)sinwave));
             }
@@ -472,10 +463,10 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
 
     void drawUnits() {
         Color shade;
-        foreach (VisibleUnit unit; this.allUnits) {
+        foreach (unit; cast(VisibleUnit[]) allUnits) {
             Vector2 destination = unit.position;
             destination += offset + Vector2(0, -24);
-            if (this.phase==GamePhase.PlayerTurn && unit.hasActed) shade = Color(200,200,200,200);
+            if (this.phase==GamePhase.PlayerTurn && unit.hasActed) shade = Color(236,236,236,250);
             else shade = Colors.WHITE;
             DrawTextureV(unit.sprite, destination, shade);
         }
@@ -493,7 +484,7 @@ class Mission : MapTemp!(VisibleTile, VisibleUnit)
 
     void offsetMap(Rectangle mapView) { 
         Vector2 offsetOffset;
-        Vector2 SECornerSS = this.grid[$-1][$-1].getDestination(this.offset);
+        Vector2 SECornerSS = (cast(VisibleTile) grid[$-1][$-1]).getDestination(this.offset);
         if (IsMouseButtonDown(MouseButton.MOUSE_BUTTON_RIGHT)) {
             offsetOffset = GetMouseDelta();
         } else {
