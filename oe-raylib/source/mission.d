@@ -112,7 +112,7 @@ class Mission : Map
         writeln("There are ", factions.length, " factions.");
         while(!WindowShouldClose) {
             playerTurn();
-            factions[1].turn();
+            enemyTurn(factions[1]);
         }
     }
 
@@ -246,7 +246,7 @@ class Mission : Map
         
         foreach (startTile; this.startingTiles) if (startTile.occupant !is null) {
             writeln("Looking at starting tile "~to!string(startTile.x())~", "~to!string(startTile.y()));
-            this.allUnits ~= cast(VisibleUnit) startTile.occupant;
+            this.allUnits ~= startTile.occupant;
             this.factionsByName["player"].units ~= startTile.occupant;
             startTile.occupant.setLocation(startTile.x(), startTile.y());
         }
@@ -300,7 +300,6 @@ class Mission : Map
 
         MenuList!Item itemsList;
         
-        enum Action:ubyte {Nothing, Move, Attack, Items, EndTurn};
         Action playerAction = Action.Nothing;
 
         VisibleUnit movingUnit = null;
@@ -308,9 +307,8 @@ class Mission : Map
 
         debug verifyEverything();
 
-        while(!WindowShouldClose() && playerAction != Action.EndTurn)
+        while(!WindowShouldClose())
         {
-            debug if (playerAction != Action.Nothing && selectedUnit is null) throw new Exception ("`playerAction is not set to `Nothing`, but `selectedUnit` is null.");
             mousePosition = GetMousePosition();
             mouseGridPosition.x = cast(int)GetScreenToWorld2D(GetMousePosition, camera).x / TILEWIDTH;
             mouseGridPosition.y = cast(int)GetScreenToWorld2D(GetMousePosition, camera).y / TILEHEIGHT;
@@ -322,7 +320,7 @@ class Mission : Map
             assert (playerFaction.units.length > 0);
             foreach (unit; playerFaction.units) {
                 assert (unit !is null);
-                (cast(VisibleUnit)unit).stepTowards(unit.currentTile);
+                (cast(VisibleUnit)unit).act;//stepTowards(unit.currentTile);
             }
 
             BeginDrawing();
@@ -332,25 +330,23 @@ class Mission : Map
 
             if (selectedUnit !is null) switch(playerAction) {
                 case Action.Move:
-                    foreach (tileAccess; selectedUnit.getReachable!TileAccess) {
-                        DrawRectangleRec((cast(VisibleTile)tileAccess.tile).rect, Color(60, 240, 120, 30));
-                        if (leftClick && tileAccess.tile.location == mouseGridPosition) {
+                    foreach (tile; selectedUnit.getReachable!Tile) {
+                        DrawRectangleRec((cast(VisibleTile)tile).rect, Color(60, 240, 120, 30));
+                        //debug DrawTextureEx(arrow, Vector2(cast(float)(tile.x*TILEWIDTH+32), cast(float)(tile.y*TILEWIDTH+32)), tileAccess.directionTo.getAngle, 1.0f, Color(120, 240, 120, 60));
+                        if (leftClick && tile.location == mouseGridPosition) {
                             selectedUnit.move(cursorTile.x, cursorTile.y);
                             playerAction = Action.Nothing;
                         }
                     }
-                    if (leftClick && selectedUnit.getTileAccess(mouseGridPosition).reachable) {
-                        
-                    }
                     break;
                 case Action.Attack:
-                    foreach (tileAccess; selectedUnit.getAttackable!TileAccess) {
-                        DrawRectangleRec((cast(VisibleTile)tileAccess.tile).rect, Color(60, 240, 120, 30));
-                        debug DrawTextureEx(arrow, Vector2(cast(float)(tileAccess.tile.x*TILEWIDTH+32), cast(float)(tileAccess.tile.y*TILEWIDTH+32)), tileAccess.directionTo.getAngle, 1.0f, Color(120, 240, 120, 60));
-                    }
-                    if (leftClick && cursorTile.occupant !is null && canFind(playerFaction.enemies, cursorTile.occupant.faction)) {
-                        selectedUnit.move(mouseGridPosition.x, mouseGridPosition.y);
-                        playerAction = Action.Nothing;
+                    debug assert (selectedUnit.getAttackable!Tile.length > 0, "Attackable tiles not cached for unit "~selectedUnit.name);
+                    foreach (tile; selectedUnit.getAttackable!Tile) {
+                        DrawRectangleRec((cast(VisibleTile)tile).rect, Color(60, 240, 120, 30));
+                        if (leftClick && tile.location == mouseGridPosition) {
+                            selectedUnit.attack(cursorTile.x, cursorTile.y);
+                            playerAction = Action.Nothing;
+                        }
                     }
                     break;
                 default: break;
@@ -421,7 +417,7 @@ class Mission : Map
                     remaining -= unit.hasActed;
                     remaining -= unit.finishedTurn;
                 }
-                if (remaining < 3) {
+                if (remaining < 3 && playerAction != Action.EndTurn) {
                     version (customgui) {
                         finishButton.draw;
                         if (finishButton.button(onButton)) playerAction = Action.EndTurn;
@@ -432,10 +428,39 @@ class Mission : Map
             }
             version (drawFPS) DrawFPS(20, 20);
             EndDrawing();
+            if (playerAction == Action.EndTurn) {
+                bool allFinished = true;
+                foreach (unit; cast(VisibleUnit[]) playerFaction.units) {
+                    if (unit.acting) allFinished = false;
+                }
+                if (allFinished) break;
+            }
         }
 
         selectedUnit = null;
         endTurn();
+    }
+
+    void enemyTurn(Faction faction) {
+        faction.turn;
+
+        while (!WindowShouldClose) {
+            BeginDrawing();
+            ClearBackground(Color(20, 60, 90, 255));
+            BeginMode2D(camera);
+            drawGround();
+            drawUnits();
+            EndMode2D();
+            EndDrawing();
+
+            bool allFinished = true;
+            foreach (unit; cast(VisibleUnit[]) faction.units) {
+                (cast(VisibleUnit)unit).act;
+                if (unit.acting) allFinished = false;
+                else debug writeln(unit.name~" has no actions left.");
+            }
+            if (allFinished) break;
+        }
     }
 
     void drawGround() {

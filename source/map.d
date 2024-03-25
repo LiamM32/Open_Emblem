@@ -132,7 +132,7 @@ class Map {
         }
     }
 
-    debug bool verifyEverything() {
+    debug bool verifyEverything(const bool includeReach=true) {
         import std.conv;
         import std.uni:toLower;
         import std.algorithm.searching;
@@ -159,6 +159,9 @@ class Map {
             assert(unit == unit.currentTile.occupant, "Unit "~unit.name~"'s tile is set to "~to!string(unit.currentTile.x)~", "~to!string(unit.currentTile.y)~", but it's not mutual.");
             assert(unit.xlocation == unit.currentTile.x, "Unit "~unit.name~"'s `xlocation` does not match it's `currentTile.x`.");
             assert(unit.ylocation == unit.currentTile.y, "Unit "~unit.name~"'s `ylocation` does not match it's `currentTile.y`.");
+            if (includeReach) {
+                foreach (x, row; this.grid) foreach (y, tile; row) assert (unit.getTileAccess(cast(int)x, cast(int)y).tile == tile);
+            }
         }
         return true;
     }

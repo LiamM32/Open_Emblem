@@ -28,23 +28,23 @@ class UnitSpriteSet
         }
     }
 
-    void drawFrame (Unit* unit, Vector2 destination, float timer, Action action) {
+    void drawFrame (Unit* unit, Vector2 destination, float timer, SpriteAction action) {
         int direction = unit.facing.to!int;
         int frameNum;
         switch (action) {
-            case Action.stretch:
+            case SpriteAction.stretch:
                 frameNum = cast(int)timer % 7;
                 DrawTextureV(this.stretch[direction][frameNum], destination, Colors.WHITE);
                 break;
-            case Action.walk:
+            case SpriteAction.walk:
                 frameNum = cast(int)timer % 9;
                 DrawTextureV(this.walk[direction][frameNum], destination, Colors.WHITE);
                 break;
-            case Action.attack:
+            case SpriteAction.attack:
                 frameNum = cast(int)timer % 8;
                 DrawTextureV(this.attack[direction][frameNum], destination, Colors.WHITE);
                 break;
-            case Action.fall:
+            case SpriteAction.fall:
                 frameNum = cast(int)timer % 6;
                 DrawTextureV(this.fall[frameNum], destination, Colors.WHITE);
                 break;
@@ -53,7 +53,7 @@ class UnitSpriteSet
     }
 }
 
-enum Action : ubyte
+enum SpriteAction : ubyte
 {
     wait,
     stretch,
