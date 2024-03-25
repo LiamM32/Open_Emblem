@@ -23,6 +23,8 @@ class Map {
     public Faction[string] factionsByName;
     public Unit[] allUnits;
 
+    mixin UnitArrayManagement!allUnits;
+
     this(string name) {
         this.name = name;
     }
@@ -239,20 +241,6 @@ class Map {
         if (name in factionsByName) return factionsByName[name];
         else if (name.toLower in factionsByName) return factionsByName[name.toLower];
         else throw new Exception("Faction "~name~" not found.");
-    }
-
-    bool removeUnit(Unit unit) { //Should later be replaced with the one in the `UnitArrayManagement` template
-        import std.algorithm.searching;
-        Unit[] shiftedUnits = allUnits.find(unit);
-        ushort unitKey = cast(ushort)(allUnits.length - shiftedUnits.length);
-        if (shiftedUnits.length > 0) {
-            this.allUnits[$-shiftedUnits.length] = null;
-            for (ushort i=0; i<shiftedUnits.length-1; i++) {
-                this.allUnits[unitKey+i] = this.allUnits[unitKey+i+1];
-            }
-            this.allUnits.length--;
-            return true;
-        } else return false;
     }
 
     bool checkObstruction (Vector2i a, Vector2i b) { // Returns true if the tightest path between two points is unobstructed.
