@@ -1,3 +1,5 @@
+debug import std.stdio;
+
 import std.json;
 import raylib;
 import constants;
@@ -13,6 +15,7 @@ class VisibleUnit : Unit
     //UnitSpriteSet spriteSet;
     Texture2D sprite;
     Vector2 position;
+    bool acting;
     TileAccess[] path;
 
     this(Mission map, JSONValue unitData, Faction faction = null) {
@@ -59,13 +62,15 @@ class VisibleUnit : Unit
         import std.math.algebraic;
         
         Vector2 initial = this.position;
-        float stepDistance = GetFrameTime / 1000;
-        if (this.tileReach[x][y].directionTo.to!int%2) stepDistance /= 1.41421356237;
-        if (x*TILEWIDTH > position.x) this.position.x += 1.0f;// = min(position.x+stepDistance, cast(float)(x*TILEWIDTH));
-        else if (x*TILEWIDTH < position.x) this.position.x -= 1.0f; // = max(position.x-stepDistance, cast(float)(x*TILEWIDTH));
-        if (y*TILEHEIGHT > position.y) position.y += 1.0f;// = min(position.y+stepDistance, cast(float)(y*TILEHEIGHT));
-        else if (y*TILEHEIGHT < position.y) this.position.y -= 1.0f;// = max(position.y-stepDistance, cast(float)(y*TILEHEIGHT));
+        float stepDistance = GetFrameTime * 64;
+        //debug writeln(stepDistance);
+        if (this.tileReach[x][y].directionTo.diagonal) stepDistance /= 1.41421356237f;
+        if (x*TILEWIDTH > position.x) this.position.x = min(position.x+stepDistance, cast(float)(x*TILEWIDTH));
+        else if (x*TILEWIDTH < position.x) this.position.x = max(position.x-stepDistance, cast(float)(x*TILEWIDTH));
+        if (y*TILEHEIGHT > position.y) position.y = min(position.y+stepDistance, cast(float)(y*TILEHEIGHT));
+        else if (y*TILEHEIGHT < position.y) this.position.y = max(position.y-stepDistance, cast(float)(y*TILEHEIGHT));
         Vector2 step = position - initial;
+        
         return abs(max(position.x/TILEWIDTH, position.y/TILEHEIGHT));
     }
 

@@ -316,9 +316,17 @@ class Mission : Map
             mouseGridPosition.y = cast(int)GetScreenToWorld2D(GetMousePosition, camera).y / TILEHEIGHT;
             cursorTile = cast(VisibleTile)getTile(mouseGridPosition, true);
             leftClick = IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT);
+
             offsetCamera(mapView);
-            if (movingUnit !is null) movingUnit.stepTowards();
+            assert (playerFaction !is null, "playerFaction is null");
+            assert (playerFaction.units.length > 0);
+            foreach (unit; playerFaction.units) {
+                assert (unit !is null);
+                (cast(VisibleUnit)unit).stepTowards(unit.currentTile);
+            }
+
             BeginDrawing();
+            ClearBackground(Color(20, 60, 90, 255));
             BeginMode2D(camera);
             drawGround();
 
@@ -326,10 +334,13 @@ class Mission : Map
                 case Action.Move:
                     foreach (tileAccess; selectedUnit.getReachable!TileAccess) {
                         DrawRectangleRec((cast(VisibleTile)tileAccess.tile).rect, Color(60, 240, 120, 30));
+                        if (leftClick && tileAccess.tile.location == mouseGridPosition) {
+                            selectedUnit.move(cursorTile.x, cursorTile.y);
+                            playerAction = Action.Nothing;
+                        }
                     }
                     if (leftClick && selectedUnit.getTileAccess(mouseGridPosition).reachable) {
-                        selectedUnit.move(cursorTile.x, cursorTile.y);
-                        playerAction = Action.Nothing;
+                        
                     }
                     break;
                 case Action.Attack:
@@ -454,9 +465,9 @@ class Mission : Map
             shade = Colors.WHITE;
             if (phase==GamePhase.PlayerTurn && unit.faction == playerFaction) {
                 if (unit.hasActed) shade = Color(235,235,235,255);
-                else DrawEllipse(cast(int)unit.position.x+TILEWIDTH/2, cast(int)unit.position.y+TILEHEIGHT/2, cast(float)(TILEWIDTH/2), cast(float)(TILEHEIGHT/2), Colours.Highlight);
+                else DrawEllipse(cast(int)unit.position.x+TILEWIDTH/2, cast(int)unit.position.y+TILEHEIGHT/2, cast(float)(TILEWIDTH*0.4375), cast(float)(TILEHEIGHT*0.4375), Colours.Highlight);
             }
-            DrawTextureV(unit.sprite, unit.position+Vector2(0.0f,-24.0f), shade);
+            DrawTextureV(unit.sprite, unit.position+Vector2(0.0f,-30.0f), shade);
         }
     }
 
@@ -505,10 +516,10 @@ class Mission : Map
 
         Vector2 topLeftPosition = GetScreenToWorld2D(Vector2(mapView.x, mapView.y), camera);
         Vector2 bottomRightPosition = GetScreenToWorld2D(Vector2(mapView.x+mapView.width, mapView.y+mapView.height), camera);
-        if (topLeftPosition.x < (mapArea.x - margins.x)) camera.target.x -= topLeftPosition.x;
-        else if (bottomRightPosition.x > mapArea.width + margins.x) camera.target.x -= bottomRightPosition.x - mapArea.width;
-        if (topLeftPosition.y < (mapArea.y - margins.y)) camera.target.y -= topLeftPosition.y;
-        else if (bottomRightPosition.y > (mapArea.y + mapArea.height)) camera.target.y -= bottomRightPosition.y - (mapArea.y + mapArea.height);
+        if (topLeftPosition.x < (mapArea.x - margins.x)) camera.target.x -= topLeftPosition.x - margins.x;
+        else if (bottomRightPosition.x > mapArea.width + margins.x) camera.target.x -= bottomRightPosition.x + margins.x - mapArea.width;
+        if (topLeftPosition.y < (mapArea.y - margins.y)) camera.target.y -= topLeftPosition.y + margins.y;
+        else if (bottomRightPosition.y > (mapArea.y + mapArea.height)) camera.target.y -= bottomRightPosition.y - (mapArea.y + mapArea.height + margins.y);
     }
 }
 

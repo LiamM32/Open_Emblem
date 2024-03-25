@@ -234,8 +234,8 @@ class Unit {
         this.tileReach[x][y].measured = true;
         this.tileReach[x][y].directionTo = wentIn;
         if (distancePassed <= this.MvRemaining) {
+            version (moreCaching) if (!tileReach[x][y].reachable) this.reachableTiles ~= &tileReach[x][y];
             this.tileReach[x][y].reachable = true;
-            version (moreCaching) this.reachableTiles ~= &tileReach[x][y];
         }
         
         auto stickyness = this.map.getTile(x, y).stickyness;
