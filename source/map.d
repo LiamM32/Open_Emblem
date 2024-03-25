@@ -187,7 +187,7 @@ class Map {
         }
     }
     
-    Tile getTile(Vector2i location, bool allowNull=false) {
+    Tile getTile(Vector2i location, const bool allowNull=false) {
         if (location.x >= 0 && location.x < this.gridWidth && location.y >= 0 && location.y < this.gridLength) return this.grid[location.x][location.y];
         else if (allowNull) {
             return null;

@@ -335,6 +335,7 @@ class Mission : Map
                 case Action.Attack:
                     foreach (tileAccess; selectedUnit.getAttackable!TileAccess) {
                         DrawRectangleRec((cast(VisibleTile)tileAccess.tile).rect, Color(60, 240, 120, 30));
+                        debug DrawTextureEx(arrow, Vector2(cast(float)(tileAccess.tile.x*TILEWIDTH+32), cast(float)(tileAccess.tile.y*TILEWIDTH+32)), tileAccess.directionTo.getAngle, 1.0f, Color(120, 240, 120, 60));
                     }
                     if (leftClick && cursorTile.occupant !is null && canFind(playerFaction.enemies, cursorTile.occupant.faction)) {
                         selectedUnit.move(mouseGridPosition.x, mouseGridPosition.y);
@@ -343,6 +344,13 @@ class Mission : Map
                     break;
                 default: break;
             }
+            if (playerAction == Action.Nothing && leftClick && cursorTile !is null) {
+                if (cursorTile.occupant !is null /*&& cursorTile.occupant.faction == playerFaction*/) {
+                    selectedUnit = cursorTile.occupant;
+                    version (updateOnClick) selectedUnit.updateReach();
+                }
+            }
+            
             if (cursorTile !is null) DrawRectangleRec(cursorTile.rect, Colours.Highlight); // Highlights the tile where the cursor is.
 
             //if (selectedUnit !is null) DrawRectangleRec((cast(VisibleTile)selectedUnit.currentTile).rect, Colours.Highlight);
@@ -443,8 +451,11 @@ class Mission : Map
     void drawUnits() {
         Color shade;
         foreach (VisibleUnit unit; cast(VisibleUnit[]) allUnits) {
-            if (this.phase==GamePhase.PlayerTurn && unit.hasActed) shade = Color(200,200,200,200);
-            else shade = Colors.WHITE;
+            shade = Colors.WHITE;
+            if (phase==GamePhase.PlayerTurn && unit.faction == playerFaction) {
+                if (unit.hasActed) shade = Color(235,235,235,255);
+                else DrawEllipse(cast(int)unit.position.x+TILEWIDTH/2, cast(int)unit.position.y+TILEHEIGHT/2, cast(float)(TILEWIDTH/2), cast(float)(TILEHEIGHT/2), Colours.Highlight);
+            }
             DrawTextureV(unit.sprite, unit.position+Vector2(0.0f,-24.0f), shade);
         }
     }
