@@ -6,7 +6,7 @@ license "GPL-3.0-or-later"
 
 //targetType "sourceLibrary"
 
-versions "gridBoundsCheck" "moreCaching"
+versions "gridBoundsCheck"
 excludedSourceFiles "source/loadData.d" "source/benchmark.d"
 
 configuration "regular" {

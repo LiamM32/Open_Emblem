@@ -321,9 +321,9 @@ enum GamePhase : ubyte {
 unittest
 {
     import std.algorithm.searching;
-    debug writeln("Starting Map unittest 1.");
+    debug writeln("Starting Map Unit deletion unittest.");
 
-    MapTemp!(Tile,Unit) map = new MapTemp!(Tile,Unit)(cast(ushort)16, cast(ushort)16);
+    Map map = new Map(cast(ushort)16, cast(ushort)16);
     UnitStats stats = {Mv:7, isFlyer:false, MHP:60, Str:22, Def:15};
     Unit unitA = new Unit("Unit A", map, stats);
     Unit unitB = new Unit("Unit B", map, stats);
@@ -332,8 +332,8 @@ unittest
     map.allUnits ~= unitB;
     map.allUnits ~= unitC;
     destroy(unitB);
-    assert(map.allUnits == [unitA, unitC], "Map.deleteUnit function did not work as expected.");
-    writeln("Map unittest 1 passed.");
+    assert(map.allUnits == [unitA, unitC], "Map.removeUnit function did not work as expected.");
+    writeln("Map unit deletion unittest passed.");
 }
 
 unittest
@@ -352,7 +352,7 @@ unittest
             if (x==9 && y==11) grid[x] ~= new Tile(x, y, false, false, false, 0);
             else grid[x] ~= new Tile(true, true, true, 0);
         }
-        map = new MapTemp!(Tile, Unit)("test", grid);
+        map = new Map("test", grid);
     }
     
     const Vector2i[] shouldAttackable = [Vector2i(10,11), Vector2i(9,10), Vector2i(9,9), Vector2i(8,8)];

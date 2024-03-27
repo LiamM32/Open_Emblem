@@ -120,7 +120,9 @@ class Unit {
 
     ~this() {
         this.alive = false;
-        if (this.map !is null) this.map.removeUnit(this);
+        if (this.map !is null) {
+            this.map.removeUnit(this);
+        }
         if (this.faction !is null) this.faction.removeUnit(this);
         //writeln("Unit "~this.name~"has been deleted.");
         if (this.currentTile !is null) this.currentTile.occupant = null;
@@ -395,7 +397,7 @@ struct AttackPotential {
 template UnitArrayManagement(alias Unit[] unitsArray) {
     bool removeUnit(Unit unit) {
         import std.algorithm.searching;
-        writeln("Doing `Map.removeUnit`");
+        writeln("Doing `removeUnit`");
         Unit[] shiftedUnits = unitsArray.find(unit);
         ushort unitKey = cast(ushort)(unitsArray.length - shiftedUnits.length);
         debug {
@@ -418,10 +420,10 @@ template UnitArrayManagement(alias Unit[] unitsArray) {
 }
 
 
-unittest //Currently incomplete test of attack damage
+/*unittest //Currently incomplete test of attack damage
 {
     //debug writeln("Starting Unit attack unittest.");
-    MapTemp!(Tile,Unit) map = new MapTemp!(Tile,Unit)(cast(ushort)8, cast(ushort)8);
+    Map map = new Map(cast(ushort)8, cast(ushort)8);
     UnitStats stats;
     stats.Str = 24;
     stats.Def = 12;
@@ -430,7 +432,7 @@ unittest //Currently incomplete test of attack damage
     Unit enemy = new Unit("Enemy", map, stats);
     ally.setLocation(3, 3);
     enemy.setLocation(3, 4);
-}
+}*/
 
 unittest
 {
@@ -453,7 +455,7 @@ unittest
         assert(stats.Def == 18);
         writeln("UnitStats unittest passed.");
     }
-    Map map = new MapTemp!(Tile, Unit)(cast(ushort)12, cast(ushort)12);
+    Map map = new Map(cast(ushort)12, cast(ushort)12);
     unitA.map = map;
     version (moreCaching) {
         debug writeln("Starting Unit caching unittest.");
@@ -471,4 +473,7 @@ unittest
         }
         writeln("Passed Unit caching unittest.");
     }
+    destroy(unitA);
+    destroy(map);
+    debug writeln("Destroyed objects from Unit unittests.");
 }

@@ -157,7 +157,7 @@ Vector2i offsetByDirection(Direction direction, Vector2i location=Vector2i(0,0))
     return location;
 }
 
-uint measureDistance(Vector2i a, Vector2i b=Vector2i(0,0)) {
+@safe @nogc pure uint measureDistance(Vector2i a, Vector2i b=Vector2i(0,0)) {
     import std.math.algebraic;
     import std.algorithm;
     auto xdiff = abs(a.x - b.x);
@@ -169,10 +169,13 @@ unittest
 {
     debug writeln("Starting Direction unittest.");
     Direction direction = Direction.N;
+    assert(!direction.diagonal, "Direction.diagonal function false positive.");
     direction--;
     assert(direction == Direction.NW, "Direction opUnary \"--\" failed.");
+    assert(direction.diagonal, "Direction.diagonal function false negative.");
     direction+=3;
     assert(direction == Direction.E, "Direction opOpAssign \"+=\" failed");
+    assert(!direction.diagonal, "Direction.diagonal function false positive.");
     direction++;
     assert(direction == Direction.SE, "Direction opUnary \"++\" failed.");
     direction=Direction.S+2;
