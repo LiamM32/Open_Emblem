@@ -30,7 +30,7 @@ class Mission : Map
     Faction playerFaction;
     
     static SpriteLoader spriteLoader;
-    version (customgui) static Font font;
+    version (customgui) UIStyle style;
     Texture2D[] sprites;
     Texture2D gridMarker;
     
@@ -62,7 +62,7 @@ class Mission : Map
         import std.conv;
         import std.uni: toLower;
 
-        version (customgui) this.font = FontSet.getDefault.serif;
+        version (customgui) this.style = UIStyle.getDefault;
 
         spriteLoader = SpriteLoader.current;
 
@@ -128,7 +128,7 @@ class Mission : Map
         foreach (uint k, unitData; playerUnitsData.array) {
             VisibleUnit unit = new VisibleUnit(this, unitData, factionsByName["player"]);//loadUnitFromJSON(unitData, spriteIndex, false);
             availableUnits ~= unit;
-            unitCards[unit] = new UnitInfoCard(unit, k*258, GetScreenHeight()-88);
+            unitCards[unit] = new UnitInfoCard(unit, Vector2(x:k*258.0f, y:GetScreenHeight()-88.0f));
         }
         debug writeln("There are "~to!string(unitCards.length)~" units available.");
 
@@ -147,7 +147,7 @@ class Mission : Map
             TextButton startButton;
             {
                 Rectangle buttonOutline = {x:GetScreenWidth()-160, y:menuBox.y-16, width:160, height:32};
-                startButton = new TextButton(buttonOutline, "Start Mission", 24, Colours.Crimson, true);
+                startButton = new TextButton(buttonOutline, UIStyle.getDefault, "Start Mission", 18, &endTurn);
             }
         }
 
@@ -209,7 +209,7 @@ class Mission : Map
 
             DrawRectangleRec(menuBox, Colours.Paper);
             foreach (card; unitCards) if (card.unit.currentTile is null) {
-                card.draw(this.sprites);
+                card.draw();
                 if (leftClick && card.available && CheckCollisionPointRec(mousePosition, card.outline)) this.selectedUnit = card.unit;
             }
 
@@ -266,6 +266,9 @@ class Mission : Map
         bool onButton = false;
         bool leftClick = false;
         VisibleTile cursorTile;
+        Action playerAction = Action.Nothing;
+
+        MenuList!Item itemsList;
 
         version (customgui) {
             TextButton moveButton;
@@ -276,19 +279,34 @@ class Mission : Map
             TextButton finishButton;
             {
                 Rectangle buttonOutline = {x:GetScreenWidth-96, y:GetScreenHeight-32, 80, 32};
-                backButton = new TextButton(buttonOutline, "Back", 20, Colours.Crimson, true);
-                buttonOutline.y -= 48;
-                waitButton = new TextButton(buttonOutline, "Wait", 20, Colours.Crimson, true);
-                buttonOutline.y -= 48;
-                itemsButton = new TextButton(buttonOutline, "Items", 20, Colours.Crimson, true);
-                buttonOutline.y -= 48;
-                attackButton = new TextButton(buttonOutline, "Attack", 20, Colours.Crimson, true);
-                buttonOutline.y -= 48;
-                moveButton = new TextButton(buttonOutline, "Move", 20, Colours.Crimson, true);
+                backButton = new TextButton(buttonOutline, UIStyle.getDefault, "Back", 20, delegate {
+                    if (playerAction != Action.Nothing) {
+                        playerAction = Action.Nothing;
+                        if (playerAction == Action.Items) {
+                            destroy(itemsList);
+                            itemsList = null;
+                        }
+                    } else selectedUnit = null;
+                });
+                buttonOutline.y -= 32;
+                waitButton = new TextButton(buttonOutline, UIStyle.getDefault, "Wait", 20, delegate {
+                    selectedUnit.hasActed = true;
+                    selectedUnit.finishedTurn = true;
+                    playerAction = Action.Nothing;
+                    selectedUnit = null;
+                });
+                buttonOutline.y -= 32;
+                itemsButton = new TextButton(buttonOutline, UIStyle.getDefault, "Items", 20, delegate {
+                    playerAction = Action.Items;
+                    itemsList = new MenuList!Item(GetScreenWidth-128, GetScreenHeight()/2, selectedUnit.inventory);
+                });
+                buttonOutline.y -= 32;
+                attackButton = new TextButton(buttonOutline, UIStyle.getDefault, "Attack", 20, delegate {playerAction = Action.Attack;});
+                buttonOutline.y -= 32;
+                moveButton = new TextButton(buttonOutline, UIStyle.getDefault, "Move", 20, delegate {playerAction = Action.Move;});
                 buttonOutline = Rectangle(x:GetScreenWidth-128, y:GetScreenHeight-32, 128, 32);
-                finishButton = new TextButton(buttonOutline, "Finish turn", 20, Colours.Crimson, true);
+                finishButton = new TextButton(buttonOutline, UIStyle.getDefault, "Finish turn", 20, delegate {playerAction = Action.EndTurn;});
             }
-            assert(moveButton.buttonColour == Colours.Crimson, "Move button does not appear to be initialized.");
         } else version (raygui) {
             Rectangle moveButton = {x:GetScreenWidth-96, y:GetScreenHeight-(32*5), 96, 32};
             Rectangle attackButton = {x:GetScreenWidth-96, y:GetScreenHeight-(32*4), 96, 32};
@@ -297,10 +315,6 @@ class Mission : Map
             Rectangle backButton = {x:GetScreenWidth-96, y:GetScreenHeight-(32*1), 96, 32};
             Rectangle finishButton = {x:GetScreenWidth-128, y:GetScreenHeight-32, 128, 32};
         }
-
-        MenuList!Item itemsList;
-        
-        Action playerAction = Action.Nothing;
 
         VisibleUnit movingUnit = null;
         debug Texture arrow = LoadTexture("../sprites/arrow.png");
@@ -342,7 +356,8 @@ class Mission : Map
                 case Action.Attack:
                     debug assert (selectedUnit.getAttackable!Tile.length > 0, "Attackable tiles not cached for unit "~selectedUnit.name);
                     foreach (tile; selectedUnit.getAttackable!Tile) {
-                        DrawRectangleRec((cast(VisibleTile)tile).rect, Color(60, 240, 120, 30));
+                        if (tile.occupant is null) DrawRectangleRec((cast(VisibleTile)tile).rect, Color(200,60,60,30));
+                        else if (canFind(playerFaction.enemies, tile.occupant.faction)) DrawRectangleRec((cast(VisibleTile)tile).rect, Color(240,60,60,40));
                         if (leftClick && tile.location == mouseGridPosition) {
                             selectedUnit.attack(cursorTile.x, cursorTile.y);
                             playerAction = Action.Nothing;
@@ -373,19 +388,11 @@ class Mission : Map
             if (selectedUnit !is null) {
                 if (playerAction == Action.Nothing) {
                     version (customgui) {
-                        if (selectedUnit.canMove && moveButton.button(onButton)) {
-                            playerAction = Action.Move;
-                        } else if (!selectedUnit.hasActed && attackButton.button(onButton)) {
-                            playerAction = Action.Attack;
-                        } else if (itemsButton.button(onButton)) {
-                            playerAction = Action.Items;
-                            itemsList = new MenuList!Item(GetScreenWidth-128, GetScreenHeight()/2, selectedUnit.inventory);
-                        } else if (waitButton.button(onButton)) {
-                            selectedUnit.hasActed = true;
-                            selectedUnit.finishedTurn = true;
-                            playerAction = Action.Nothing;
-                            selectedUnit = null;
-                        } else if (backButton.button(onButton)) selectedUnit = null;
+                        if (selectedUnit.canMove) moveButton.draw;
+                        if (!selectedUnit.hasActed) attackButton.draw;
+                        itemsButton.draw;
+                        waitButton.draw;
+                        backButton.draw;
                     } version (raygui) {
                         if (selectedUnit.MvRemaining > 1) if (GuiButton(moveButton, "#150#Move".toStringz)) playerAction = Action.Move;
                         if (!selectedUnit.hasActed) if (GuiButton(attackButton, "#155#Attack".toStringz)) playerAction = Action.Attack;
@@ -400,7 +407,7 @@ class Mission : Map
                     }
                 } else {
                     version (customgui) {
-                        if (backButton.button(onButton)) playerAction = Action.Nothing;
+                        backButton.draw;
                     } version (raygui) {
                         if (GuiButton(backButton, "Back".toStringz)) playerAction = Action.Nothing;
                     }
@@ -420,7 +427,6 @@ class Mission : Map
                 if (remaining < 3 && playerAction != Action.EndTurn) {
                     version (customgui) {
                         finishButton.draw;
-                        if (finishButton.button(onButton)) playerAction = Action.EndTurn;
                     } version (raygui) {
                         if (GuiButton(finishButton, "Finish turn".toStringz)) playerAction = Action.EndTurn;
                     }
@@ -494,16 +500,6 @@ class Mission : Map
             }
             DrawTextureV(unit.sprite, unit.position+Vector2(0.0f,-30.0f), shade);
         }
-    }
-
-    void drawOnMap(Texture2D sprite, Rectangle rect) {
-        Vector2 destination = rectDest(rect, camera.offset);
-        DrawTextureRec(sprite, rect, destination, Colors.WHITE);
-    }
-    void drawOnMap(Rectangle rect, Color colour) {
-        rect.x += camera.offset.x;
-        rect.y += camera.offset.y;
-        DrawRectangleRec(rect, colour);
     }
 
     void offsetCamera(Rectangle mapView) { 

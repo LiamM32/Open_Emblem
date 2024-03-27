@@ -1,3 +1,4 @@
+debug import std.stdio;
 import raylib;
 version (raygui) import raygui;
 import std.string: toStringz;
@@ -6,6 +7,7 @@ import std.conv;
 import vunit;
 import unit;
 import common;
+import vector_math;
 
 class FontSet {
     private static FontSet defaultSet;
@@ -36,78 +38,96 @@ class FontSet {
     }
 }
 
+class UIStyle
+{
+    static UIStyle defaultStyle;
+    
+    Color baseColour;
+    Color textColour;
+    Color hoverColour;
+    Color outlineColour;
+    float outlineThickness;
+    float lineSpacing;
+    FontSet fontSet;
+
+    this(Color baseColour, Color textColour, Color outlineColour, float outlineThickness, FontSet fontSet) {
+        this.baseColour = baseColour;
+        this.textColour = textColour;
+        this.outlineColour = outlineColour;
+        this.outlineThickness = outlineThickness;
+        this.fontSet = FontSet.getDefault;
+        lineSpacing = 1.0f;
+    }
+
+    static UIStyle getDefault() {
+        if (defaultStyle is null) defaultStyle = new UIStyle(Colours.Paper, Colors.BLACK, Colors.BROWN, 1.0f, FontSet.getDefault);
+        return defaultStyle;
+    }
+}
+
+interface UIElement {
+    //void setStyle();
+    void draw();
+    void draw(Vector2 offset);
+}
+
 enum FontStyle { serif, serif_bold, serif_italic, sans, sans_bold, }
 
-class TextButton
+class Panel : UIElement
+{
+    Vector2 origin;
+    UIElement[] children;
+
+    void draw() {
+        foreach (childElement; children) {
+            childElement.draw;
+        }
+    }
+
+    void draw(Vector2 offset) {
+        foreach (childElement; children) {
+            childElement.draw(offset);
+        }
+    }
+}
+
+class TextButton// : UIElement
 {
     Rectangle outline;
+    UIStyle style;
     Font font;
-    Texture renderedText;
-    Color buttonColour;
-    Color fontColour;
     string text;
     float fontSize;
-    float lineSpacing = 1.0;
     Vector2 textAnchor;
+    void delegate() onClick;
 
     version(FontSet) {
         static this() {
             font = FontSet.getDefault.sans_bold;
         }
     }
-    
-    this(Rectangle outline, Font font, string text, int fontSize, Color buttonColour, bool whiteText) {
-        TextButton.font = font;
-        this(outline, text, fontSize, buttonColour, whiteText);
-    }
-    
-    this(Rectangle outline, string text, int fontSize, Color buttonColour, bool whiteText) {
+
+    this(Rectangle outline, UIStyle style, string text, int fontSize, void delegate() action) {
         this.outline = outline;
-        this.buttonColour = buttonColour;
         this.text = text;
-        TextButton.fontSize = to!float(fontSize);
-        if (whiteText) TextButton.fontColour = Colors.RAYWHITE;
-        else TextButton.fontColour = Colors.BLACK;
-        this.font = FontSet.getDefault.sans_bold;
-        GenTextureMipmaps(&font.texture);
+        this.style = style;
+        this.fontSize = fontSize;
+        this.onClick = action;
+        this.font = style.fontSet.sans_bold;
 
-        Vector2 textDimensions = MeasureTextEx(TextButton.font, text.toStringz, to!float(fontSize), lineSpacing);
-        this.textAnchor.x = outline.x + outline.width/2 - textDimensions.x/2;
-        this.textAnchor.y = outline.y + outline.height/2 - textDimensions.y/2;
+        Vector2 textDimensions = MeasureTextEx(font, text.toStringz, fontSize, style.lineSpacing);
+        this.textAnchor.x = outline.x + (outline.width - textDimensions.x) / 2; // + (textDimensions / 2); // After merging of my version of raylib-d, change to `textAnchor = outline.origin + (outline.dimensions - textDimensions) / 2;`.
+        this.textAnchor.y = outline.y + (outline.height - textDimensions.y) / 2;
     }
 
-    void draw() {
-        DrawRectangleRec(outline, buttonColour);
-        DrawTextEx(font, this.text.toStringz, textAnchor, fontSize, lineSpacing, fontColour);
-        if(CheckCollisionPointRec(GetMousePosition(), outline)) DrawRectangleRec(outline, Colours.Highlight);
-        DrawRectangleLinesEx(outline, 1.0f, fontColour);
-    }
-
-    bool button(ref bool hover) {
-        DrawRectangleRec(outline, buttonColour);
-        DrawTextEx(font, this.text.toStringz, textAnchor, fontSize, lineSpacing, fontColour);
+    void draw(Vector2 offset = Vector2(0,0)) {
+        DrawRectangleRec(offsetRect(outline, offset), style.baseColour);
+        DrawTextEx(font, this.text.toStringz, textAnchor+offset, fontSize, style.lineSpacing, style.textColour);
         if(CheckCollisionPointRec(GetMousePosition(), outline)) {
             DrawRectangleRec(outline, Colours.Highlight);
-            hover = true;
-            if (IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) return true;
+            if (IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) onClick();
         }
-        DrawRectangleLinesEx(outline, 1.0f, fontColour);
-        return false;
-    }
-
-    debug {
-        void dump() {
-            import std.stdio;
-            writeln("Dumping info on TextButton "~to!string(this));
-            writeln(font);
-            writeln(outline);
-            writeln(buttonColour);
-            writeln(fontColour);
-            writeln(text);
-            writeln(fontSize);
-            writeln(lineSpacing);
-            writeln(textAnchor);
-        }
+        DrawRectangleLinesEx(outline, style.outlineThickness, style.outlineColour);
     }
 }
 
@@ -116,25 +136,13 @@ class UnitInfoCard
     Rectangle outline;
     Rectangle imageFrame;
     Font font;
-    int x;
-    int y;
-    int width;
-    int height;
     VisibleUnit unit;
     string infotext;
-
-    /*static this() {
-        font = FontSet.getDefault.serif;
-    }*/
     
-    this (VisibleUnit unit, int screenx, int screeny ) {
-        this.outline = Rectangle(screenx, screeny, 192, 80);
-        this.imageFrame = Rectangle(screenx+4, screeny+4, 64, 64);
+    this (VisibleUnit unit, Vector2 position ) {
+        this.outline = Rectangle(position.x, position.y, 192, 80);
+        this.imageFrame = Rectangle(position.x+4, position.y+4, 64, 64);
         this.unit = unit;
-        this.x = screenx;
-        this.y = screeny;
-        this.width = 256;
-        this.height = 72;
 
         this.font = FontSet.getDefault.serif;
         GenTextureMipmaps(&font.texture);
@@ -158,15 +166,15 @@ class UnitInfoCard
         return this.unit.getStats;
     }
 
-    bool draw(Texture[] sprites) {
+    bool draw(Vector2 offset = Vector2(0,0)) {
         if (unit.currentTile !is null) return false;
-        DrawRectangleRec(outline, Color(r:250, b:230, g:245, a:200));
-        DrawRectangleLinesEx(outline, 1.0f, Colors.BLACK);
-        DrawTexture(unit.sprite, cast(int)outline.x+4, cast(int)outline.y+2, Colors.WHITE);
+        DrawRectangleRec(offsetRect(outline, offset), Color(r:250, b:230, g:245, a:200));
+        DrawRectangleLinesEx(offsetRect(outline, offset), 1.0f, Colors.BLACK);
+        DrawTextureV(unit.sprite, Vector2(outline.x,outline.y)+offset+Vector2(4,2), Colors.WHITE); //change `Vector2(outline.x,outline.y)` to `outline.origin` if my addition to Raylib-D gets merged.
         //DrawText(this.unit.name.toStringz, x+80, y+4, 14, Colors.BLACK);
-        DrawTextEx(font, unit.name.toStringz, Vector2(x+80, y+4), 17.0f, 1.0f, Colors.BLACK);
+        DrawTextEx(font, unit.name.toStringz, Vector2(outline.x+80, outline.y+4), 17.0f, 1.0f, Colors.BLACK);
         //DrawText(this.infotext.toStringz, x+80, y+20, 11, Colors.BLACK);
-        DrawTextEx(font, infotext.toStringz, Vector2(x+80, y+20), 12.5f, 1.0f, Colors.BLACK);
+        DrawTextEx(font, infotext.toStringz, Vector2(outline.x+80, outline.y+20), 12.5f, 1.0f, Colors.BLACK);
         SetTextureFilter(font.texture, TextureFilter.TEXTURE_FILTER_BILINEAR);
         return true;
     }
@@ -177,7 +185,7 @@ class MenuList (ArrayType)
     Rectangle[] rects;
     string[] optionNames;
     version (raygui) string optionString;
-    Vector2i origin;
+    Vector2 origin;
 
     this(int x, int y) {
         this.origin.x = x;

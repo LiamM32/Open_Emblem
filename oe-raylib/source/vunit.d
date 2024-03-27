@@ -9,6 +9,7 @@ import mission;
 import tile;
 import common;
 import faction;
+import vector_math;
 
 class VisibleUnit : Unit
 {
@@ -51,7 +52,6 @@ class VisibleUnit : Unit
             default: break;
         }
         if (done) {
-            debug writeln("Got here.");
             for (int i=0; i<queue.length-1; i++) {
                 queue[i] = queue[i+1];
             }
