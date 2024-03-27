@@ -1,0 +1,7 @@
+.dub/
+open_emblem_test*
+*.code-workspace
+*.kdev4
+*.a
+*.o
+notes/*
