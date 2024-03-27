@@ -1,0 +1,3 @@
+[submodule "2d-frontend"]
+	path = 2d-frontend
+	url = https://github.com/LiamM32/OE-2D
