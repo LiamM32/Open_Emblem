@@ -47,7 +47,8 @@ class UIStyle
     Color hoverColour;
     Color outlineColour;
     float outlineThickness;
-    float lineSpacing;
+    float padding = 0.0f;
+    float lineSpacing = 1.0f;
     FontSet fontSet;
 
     this(Color baseColour, Color textColour, Color outlineColour, float outlineThickness, FontSet fontSet) {
@@ -56,7 +57,6 @@ class UIStyle
         this.outlineColour = outlineColour;
         this.outlineThickness = outlineThickness;
         this.fontSet = FontSet.getDefault;
-        lineSpacing = 1.0f;
     }
 
     static UIStyle getDefault() {
@@ -67,8 +67,8 @@ class UIStyle
 
 interface UIElement {
     //void setStyle();
-    void draw();
-    void draw(Vector2 offset);
+    bool draw(); // Returns whether the mouse is hovering.
+    bool draw(Vector2 offset);
 }
 
 enum FontStyle { serif, serif_bold, serif_italic, sans, sans_bold, }
@@ -78,20 +78,24 @@ class Panel : UIElement
     Vector2 origin;
     UIElement[] children;
 
-    void draw() {
+    bool draw() {
+        bool hover;
         foreach (childElement; children) {
-            childElement.draw;
+            if (childElement.draw) hover = true;;
         }
+        return hover;
     }
 
-    void draw(Vector2 offset) {
+    bool draw(Vector2 offset) {
+        bool hover;
         foreach (childElement; children) {
-            childElement.draw(offset);
+            if (childElement.draw(offset)) hover = true;
         }
+        return hover;
     }
 }
 
-class TextButton// : UIElement
+class TextButton : UIElement
 {
     Rectangle outline;
     UIStyle style;
@@ -120,18 +124,23 @@ class TextButton// : UIElement
         this.textAnchor.y = outline.y + (outline.height - textDimensions.y) / 2;
     }
 
-    void draw(Vector2 offset = Vector2(0,0)) {
+    bool draw() {return draw(Vector2(0,0));}
+    
+    bool draw(Vector2 offset = Vector2(0,0)) {
+        bool hover;
         DrawRectangleRec(offsetRect(outline, offset), style.baseColour);
         DrawTextEx(font, this.text.toStringz, textAnchor+offset, fontSize, style.lineSpacing, style.textColour);
         if(CheckCollisionPointRec(GetMousePosition(), outline)) {
+            hover = true;
             DrawRectangleRec(outline, Colours.Highlight);
             if (IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT)) onClick();
         }
         DrawRectangleLinesEx(outline, style.outlineThickness, style.outlineColour);
+        return hover;
     }
 }
 
-class UnitInfoCard
+class UnitInfoCard// : UIElement
 {
     Rectangle outline;
     Rectangle imageFrame;
