@@ -134,7 +134,7 @@ class Map {
         }
     }
 
-    debug bool verifyEverything() {
+    debug bool verifyEverything(const bool includeReach=true) {
         import std.conv;
         import std.uni:toLower;
         import std.algorithm.searching;
@@ -161,6 +161,9 @@ class Map {
             assert(unit == unit.currentTile.occupant, "Unit "~unit.name~"'s tile is set to "~to!string(unit.currentTile.x)~", "~to!string(unit.currentTile.y)~", but it's not mutual.");
             assert(unit.xlocation == unit.currentTile.x, "Unit "~unit.name~"'s `xlocation` does not match it's `currentTile.x`.");
             assert(unit.ylocation == unit.currentTile.y, "Unit "~unit.name~"'s `ylocation` does not match it's `currentTile.y`.");
+            if (includeReach) {
+                foreach (x, row; this.grid) foreach (y, tile; row) assert (unit.getTileAccess(cast(int)x, cast(int)y).tile == tile);
+            }
         }
         return true;
     }
@@ -189,9 +192,11 @@ class Map {
         }
     }
     
-    Tile getTile(Vector2i location) {
+    Tile getTile(Vector2i location, const bool allowNull=false) {
         if (location.x >= 0 && location.x < this.gridWidth && location.y >= 0 && location.y < this.gridLength) return this.grid[location.x][location.y];
-        else {
+        else if (allowNull) {
+            return null;
+        } else {
             writeln("Map size is "~to!string(gridWidth)~"×"~to!string(gridLength));
             throw new Exception("Tried to get non-existent tile for position "~to!string(location.x)~", "~to!string(location.y));
         }
