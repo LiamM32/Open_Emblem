@@ -119,16 +119,11 @@ class Unit {
         }
     }
 
-    bool alive = true;
-
-    ~this() {
-        this.alive = false;
-        if (this.map !is null) {
-            this.map.removeUnit(this);
-        }
+    void die() {
+        if (this.map !is null) this.map.removeUnit(this);
         if (this.faction !is null) this.faction.removeUnit(this);
-        //writeln("Unit "~this.name~"has been deleted.");
         if (this.currentTile !is null) this.currentTile.occupant = null;
+        destroy(this);
     }
 
     void turnReset() {
@@ -208,7 +203,7 @@ class Unit {
         debug writeln(this.name~" has received ", damage, " damage. HP now at ", this.HP);
         if (this.HP < 0) {
             writeln(this.name~" has fallen.");
-            destroy(this);
+            this.die;
         }
     }
 
@@ -495,7 +490,5 @@ unittest
         }
         writeln("Passed Unit caching unittest.");
     }
-    destroy(unitA);
     destroy(map);
-    debug writeln("Destroyed objects from Unit unittests.");
 }

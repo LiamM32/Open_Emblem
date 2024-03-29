@@ -123,7 +123,7 @@ class NonPlayerFaction : Faction
             MoveOption[] tileMoveOptions;
             AttackPotential[Unit] enemyAttackPotentials;
             foreach (enemyUnit; enemiesConsidered) {
-                debug assert (enemyUnit !is null && enemyUnit.alive && enemyUnit.map == this.map && enemyUnit.currentTile.occupant == enemyUnit, "Enemy has been deleted.");
+                debug assert (enemyUnit !is null && enemyUnit.map == this.map && enemyUnit.currentTile.occupant == enemyUnit, "Enemy has been deleted.");
                 ushort distance = cast(ushort)measureDistance(tile.location, enemyUnit.getLocation);
                 if (enemyUnit.getTileAccess(tile.location).tile == tile) {
                     enemyAttackPotentials[enemyUnit] = enemyUnit.getAttackPotential(unit, distance);

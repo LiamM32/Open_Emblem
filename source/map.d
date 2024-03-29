@@ -336,9 +336,10 @@ unittest
     map.allUnits ~= unitA;
     map.allUnits ~= unitB;
     map.allUnits ~= unitC;
-    destroy(unitB);
+    unitB.die;
     assert(map.allUnits == [unitA, unitC], "Map.removeUnit function did not work as expected.");
     writeln("Map unit deletion unittest passed.");
+    destroy(map);
 }
 
 unittest
@@ -376,4 +377,5 @@ unittest
         } else assert(!canFind(shouldAttackable, Vector2i(x,y)), "Tile "~to!string(x)~", "~to!string(y)~" should not be in returned coordinates.");
     }
     writeln("`Map.checkObstruction` unittest passed.");
+    destroy(map);
 }
