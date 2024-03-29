@@ -240,18 +240,17 @@ class Unit {
     
     private bool updateReach(uint distancePassed, int x, int y, Direction wentIn, ubyte lookahead=1) {
         import tile;
-        if (!this.map.getTile(x, y).allowUnit(this.isFlyer) && distancePassed > 0) return false;
-        if (this.tileReach[x][y].measured && this.tileReach[x][y].distance <= distancePassed) return true;
+        if (!map.getTile(x, y).allowUnit(this.isFlyer) && distancePassed > 0) return false;
+        if (tileReach[x][y].distance <= distancePassed) return true;
         
-        this.tileReach[x][y].distance = distancePassed;
-        this.tileReach[x][y].measured = true;
-        this.tileReach[x][y].directionTo = wentIn;
+        tileReach[x][y].distance = distancePassed;
+        tileReach[x][y].directionTo = wentIn;
         if (distancePassed <= this.MvRemaining) {
-            version (moreCaching) if (!tileReach[x][y].reachable) this.reachableTiles ~= &tileReach[x][y];
-            this.tileReach[x][y].reachable = true;
+            version (moreCaching) if (!tileReach[x][y].reachable) reachableTiles ~= &tileReach[x][y];
+            tileReach[x][y].reachable = true;
         }
         
-        auto stickyness = this.map.getTile(x, y).stickyness;
+        auto stickyness = map.getTile(x, y).stickyness;
         distancePassed += stickyness;
         
         if (distancePassed <= this.MvRemaining*lookahead -2) {
@@ -259,17 +258,17 @@ class Unit {
             bool canNorth = false;
             bool canEast = false;
             bool canSouth = false;
-            if (x > 0) canWest = this.updateReach(distancePassed +2, x-1, y, Direction.W, lookahead);
-            if (y > 0) canNorth = this.updateReach(distancePassed +2, x, y-1, Direction.N, lookahead);
-            if (x+1 < this.map.getWidth()) canEast = this.updateReach(distancePassed +2, x+1, y, Direction.E, lookahead);
-            if (y+1 < this.map.getLength()) canSouth = this.updateReach(distancePassed +2, x, y+1, Direction.S, lookahead);
+            if (x > 0) canWest = updateReach(distancePassed +2, x-1, y, Direction.W, lookahead);
+            if (y > 0) canNorth = updateReach(distancePassed +2, x, y-1, Direction.N, lookahead);
+            if (x+1 < map.getWidth()) canEast = updateReach(distancePassed +2, x+1, y, Direction.E, lookahead);
+            if (y+1 < map.getLength()) canSouth = updateReach(distancePassed +2, x, y+1, Direction.S, lookahead);
 
             distancePassed += stickyness>>1;
             if (distancePassed <= this.MvRemaining*lookahead -3) {
-                if (canWest && canNorth) this.updateReach(distancePassed +3, x-1, y-1, Direction.NW, lookahead);
-                if (canWest && canSouth) this.updateReach(distancePassed +3, x-1, y+1, Direction.SW, lookahead);
-                if (canEast && canSouth) this.updateReach(distancePassed +3, x+1, y+1, Direction.SE, lookahead);
-                if (canEast && canNorth) this.updateReach(distancePassed +3, x+1, y-1, Direction.NE, lookahead);
+                if (canWest && canNorth) updateReach(distancePassed +3, x-1, y-1, Direction.NW, lookahead);
+                if (canWest && canSouth) updateReach(distancePassed +3, x-1, y+1, Direction.SW, lookahead);
+                if (canEast && canSouth) updateReach(distancePassed +3, x+1, y+1, Direction.SE, lookahead);
+                if (canEast && canNorth) updateReach(distancePassed +3, x+1, y-1, Direction.NE, lookahead);
             }
         }
         return true;
@@ -308,7 +307,7 @@ class Unit {
     TileAccess getTileAccess(Vector2i location) {
         if (location.x <= 0 && location.y <= 0 && location.x >= map.getWidth && location.y >= map.getLength) {
             return this.tileReach[location.x][location.y];
-        } else return TileAccess(tile:null, measured:true, reachable:false, attackableNow:false, attackableAfter:false);
+        } else return TileAccess(tile:null, reachable:false, attackableNow:false, attackableAfter:false);
     }
     
     TileAccess getTileAccess(int x, int y) {
@@ -365,21 +364,22 @@ class Unit {
         return stats;
     }
 
-    Tile[] getPath(Vector2i dest) {
+    // Gets a path to destination as either `Tile[]` or `TileAccess[]`
+    T[] getPath(T)(Vector2i dest) if (is(T==Tile)||is(T==TileAccess)) {
         assert (tileReach[dest.x][dest.y].reachable);
-        Tile[] path;
-        debug writeln(dest);
-        Tile thisTile = tileReach[dest.x][dest.y].tile;
+        T[] path;
+        static if (is(T==Tile)) T thisTile = tileReach[dest.x][dest.y].tile;
+        else TileAccess thisTile = tileReach[dest.x][dest.y];
         debug assert (thisTile.location == dest);
         Direction directionTo = tileReach[dest.x][dest.y].directionTo;
         if (map.getTile(dest)==this.currentTile) return [];
-        else path = getPath(offsetByDirection(directionTo+4, dest));
+        else path = getPath!T(offsetByDirection(directionTo+4, dest));
         path ~= thisTile;
         return path;
     }
 
-    Tile[] getPath(int x, int y) {
-        return this.getPath(Vector2i(x,y));
+    T[] getPath(T)(int x, int y) if (is(T==Tile)||is(T==TileAccess)) {
+        return this.getPath!T(Vector2i(x,y));
     }
 }
 
@@ -387,14 +387,17 @@ struct TileAccess
 {
     Tile tile;
     Direction directionTo; //The tile that the unit would be moving in when reaching this tile in the optimal path.
-    uint distance = 65535;
-    bool measured = false;
+    uint distance = ushort.max;
     bool reachable = false;
     bool attackableNow = false;
     bool attackableAfter = false;
 
+    Vector2i location() {
+        return tile.location;
+    }
+
     void reset() {
-        measured = false;
+        distance = ushort.max;
         reachable = false;
         attackableNow = false;
         attackableAfter = false;

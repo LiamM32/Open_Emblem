@@ -1,4 +1,5 @@
 version(unittest) import std.stdio;
+@safe @nogc
 
 struct Vector2i //If being used with Godot-Dlang, may interfere with the struct of the same name.
 {
@@ -57,6 +58,7 @@ struct Direction //One of 8 directions stored in 3 bits
 {
     import std.conv;
     import std.traits: isNumeric;
+    @safe @nogc
     
     private ubyte value;
 
@@ -142,7 +144,7 @@ struct Direction //One of 8 directions stored in 3 bits
     }
 }
 
-Vector2i offsetByDirection(Direction direction, Vector2i location=Vector2i(0,0)) {
+@safe @nogc Vector2i offsetByDirection(Direction direction, Vector2i location=Vector2i(0,0)) {
     import std.math.algebraic;
     final switch (cast(ubyte)direction) {
         case cast(ubyte)Direction.N: location += Vector2i(0, -1); break;
@@ -157,7 +159,7 @@ Vector2i offsetByDirection(Direction direction, Vector2i location=Vector2i(0,0))
     return location;
 }
 
-@safe @nogc pure uint measureDistance(Vector2i a, Vector2i b=Vector2i(0,0)) {
+@safe @nogc uint measureDistance(Vector2i a, Vector2i b=Vector2i(0,0)) {
     import std.math.algebraic;
     import std.algorithm;
     auto xdiff = abs(a.x - b.x);
