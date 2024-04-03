@@ -29,7 +29,7 @@ class Unit {
     public uint Def;
     public uint Exp;
     
-    public Item[5] inventory;
+    public Item[] inventory;
     public Weapon currentWeapon;
     protected TileAccess[][] tileReach;
     public int MvRemaining;
@@ -67,7 +67,8 @@ class Unit {
         this.name = name;
         this.Mv = stats.Mv;
         this.MvRemaining = this.Mv;
-        this.MHP = this.MHP;
+        this.MHP = stats.MHP;
+        this.HP = stats.MHP;
         this.isFlyer = stats.isFlyer;
         this.Str = stats.Str;
         this.Def = stats.Def;
@@ -105,13 +106,14 @@ class Unit {
         this.Mv = unitData.object["Mv"].get!uint;
         this.MvRemaining = this.Mv;
         this.MHP = unitData.object["MHP"].get!uint;
+        this.HP = this.MHP;
         this.Str = unitData.object["Str"].get!uint;
         this.Def = unitData.object["Def"].get!uint;
 
         if ("Weapon" in unitData.object) {
-            Weapon weapon = new Weapon(unitData.object["Weapon"]); //Come back here later to uncomment when the memory error is resolved.
+            Weapon weapon = new Weapon(unitData.object["Weapon"]);
             this.currentWeapon = weapon;
-            this.inventory[0] = weapon;
+            this.inventory ~= weapon;
         }
 
         if ("faction" in unitData.object || "Faction" in unitData.object) {
@@ -172,17 +174,20 @@ class Unit {
     }
 
     bool attack (uint x, uint y) {
-        if ((map.getTile(x, y).occupant !is null) &&
+        Unit tileOccupant = map.getTile(x, y).occupant;
+        assert(tileOccupant !is null, "Tile occupant is null");
+        if ((tileOccupant !is null) &&
             (measureDistance(this.getLocation, Vector2i(x,y)) <= attackRange) &&
             map.checkObstruction(this.getLocation, Vector2i(x,y))
-            ) {
-            Unit opponent = this.map.getTile(x, y).occupant;
-            opponent.receiveDamage((this.Str * this.Str)/(this.Str + opponent.Def));
-
-            this.hasActed = true;
-
-            return true;
+            ) { return attack(tileOccupant);
         } else return false;
+    }
+    bool attack (Unit opponent) {
+        uint weaponAtk = (currentWeapon is null) ? 0 : currentWeapon.Atk;
+        opponent.receiveDamage((this.Str * (this.Str + weaponAtk))/(this.Str + opponent.Def));
+
+        this.hasActed = true;
+        return true;
     }
 
     bool canAttack (uint x, uint y) {
@@ -194,7 +199,8 @@ class Unit {
     }
 
     AttackPotential getAttackPotential (Unit opponent, uint distance=2) {
-        short damage = cast(short)((this.Str * this.Str)/(this.Str + opponent.Def));
+        uint weaponAtk = (currentWeapon is null) ? 0 : currentWeapon.Atk;
+        short damage = cast(short)((this.Str * (this.Str + weaponAtk))/(this.Str + opponent.Def));
         return AttackPotential(damage:damage);
     }
 
@@ -285,7 +291,7 @@ class Unit {
         foreach(tileLoc; attackableCoords) {
             if (!tileReach[tileLoc.x][tileLoc.y].attackableAfter) {
                 tileReach[tileLoc.x][tileLoc.y].attackableAfter = true;
-                attackableTiles ~= &tileReach[tileLoc.x][tileLoc.y];
+                version (moreCaching) attackableTiles ~= &tileReach[tileLoc.x][tileLoc.y];
             }
             if (forNow) this.tileReach[tileLoc.x][tileLoc.y].attackableNow = true;
         }
@@ -437,19 +443,24 @@ template UnitArrayManagement(alias Unit[] unitsArray) {
 }
 
 
-/*unittest //Currently incomplete test of attack damage
+unittest
 {
-    //debug writeln("Starting Unit attack unittest.");
+    debug writeln("Starting Unit attack unittest.");
     Map map = new Map(cast(ushort)8, cast(ushort)8);
     UnitStats stats;
     stats.Str = 24;
     stats.Def = 12;
+    stats.MHP = 60;
     
     Unit ally = new Unit("Ally", map, stats);
     Unit enemy = new Unit("Enemy", map, stats);
     ally.setLocation(3, 3);
     enemy.setLocation(3, 4);
-}*/
+    ally.attack(enemy);
+
+    assert(enemy.HP == 44);
+    writeln("Passed Unit attack unittest");
+}
 
 unittest
 {

@@ -138,6 +138,7 @@ class Map {
         import std.conv;
         import std.uni:toLower;
         import std.algorithm.searching;
+        import item;
         foreach (int x, row; this.grid) foreach (int y, tile; row) {
             assert(tile.x == x, "Tile at position "~to!string(x)~", "~to!string(y)~" does not match it's internal reading of "~tile.x.to!string~", "~tile.y.to!string~".");
             if (tile.occupant !is null) {
@@ -161,6 +162,7 @@ class Map {
             assert(unit == unit.currentTile.occupant, "Unit "~unit.name~"'s tile is set to "~to!string(unit.currentTile.x)~", "~to!string(unit.currentTile.y)~", but it's not mutual.");
             assert(unit.xlocation == unit.currentTile.x, "Unit "~unit.name~"'s `xlocation` does not match it's `currentTile.x`.");
             assert(unit.ylocation == unit.currentTile.y, "Unit "~unit.name~"'s `ylocation` does not match it's `currentTile.y`.");
+            //if (unit.currentWeapon !is null) assert(canFind(unit.inventory, cast(Item)unit.currentWeapon), "Unit "~unit.name~" current weapon is not in it's inventory.");
             if (includeReach) {
                 foreach (x, row; this.grid) foreach (y, tile; row) assert (unit.getTileAccess(cast(int)x, cast(int)y).tile == tile);
             }

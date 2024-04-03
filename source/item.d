@@ -10,7 +10,7 @@ class Weapon : Item
 {
 	bool projectile;
 	ushort range = 2;
-	uint atk;
+	uint Atk;
 	uint mass;
 	uint RH;
 	WeaponType type;
@@ -18,7 +18,7 @@ class Weapon : Item
 	this(JSONValue data) {
 		this.name = data.object["name"].get!string;
 		this.volume = data.object["volume"].get!ushort;
-		this.atk = data.object["atk"].get!int;
+		this.Atk = data.object["atk"].get!int;
 		this.mass = data.object["mass"].get!int;
 		this.RH = data.object["RH"].get!int;
 		this.range = data.object["range"].get!ushort;
