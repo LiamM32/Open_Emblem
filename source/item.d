@@ -1,10 +1,25 @@
 import std.json;
+import unit;
 
-class Item
+@safe class Item
 {
 	string name;
 	ushort volume;
+    
+    protected ItemOption[] options;
+
+    @safe ItemOption[] getOptions(Unit unit) {
+        return options;
+    }
+
+    @safe struct ItemOption
+    {
+        string name;
+        @safe void delegate(Unit user) action;
+    }
 }
+
+
 
 class Weapon : Item
 {
@@ -42,7 +57,18 @@ class Weapon : Item
 			default:
 				throw new Exception("Weapon from JSON has no type");
 		}
+
+        this.options ~= ItemOption("Equip", delegate(Unit unit) {unit.currentWeapon = this;});
 	}
+
+    @trusted override ItemOption[] getOptions(Unit user) {
+        import std.algorithm.searching;
+        if (user.currentWeapon == this) return [ItemOption("Equip", delegate(Unit unit) {unit.currentWeapon = this;})];
+        else return [ItemOption("Remove", canFind(user.inventory, this) ?
+        delegate (Unit unit) {unit.currentWeapon = null;} :
+        delegate(Unit unit) {unit.currentWeapon = null; unit.inventory ~= this;}
+        )];
+    }
 }
 
 enum WeaponType : ubyte
@@ -54,7 +80,7 @@ enum WeaponType : ubyte
 	bow
 }
 
-enum WeaponSubType : ushort
+enum WeaponSubtype : ubyte
 {
 	dagger,
 	sword,

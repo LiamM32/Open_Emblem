@@ -22,6 +22,10 @@ class Faction
     version (signals) {
         Signal!() move;
         Signal!() startTurn;
+        Signal!() win;
+    } else {
+        void delegate() onTurnStart;
+        void delegate() onWin;
     }
 
     this(string name, bool isPlayer=false) {
@@ -49,8 +53,10 @@ class Faction
     void turnReset() {
         debug if (this.units.length == 0) throw new Exception("Faction "~this.name~" has no units");
         version (signals) startTurn.emit;
-        else foreach (unit; this.units) {
-            if (unit is null) throw new Exception("Faction "~this.name~" has a null Unit reference.");
+        else if (onTurnStart !is null) onTurnStart();
+        
+        foreach (unit; this.units) {
+            if (unit is null) map.endTurn();
             else writeln(unit.name~" is being reset.");
             unit.turnReset();
         }
@@ -152,7 +158,7 @@ class NonPlayerFaction : Faction
         debug writeln(unit.name~" has ", moveOptions.length, " move options.");
         debug foreach (ushort i, option; moveOptions) {
             write("Option ",i," is to go to tile ",option.dest.location," and attack "~((option.toAttack is null) ? "no one. " : option.toAttack.name));
-            writeln(". Score of ", option.score);
+            writeln("Score of ", option.score);
         }
         
         return moveOptions;

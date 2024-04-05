@@ -170,7 +170,12 @@ class Map {
         return true;
     }
 
-    void endTurn() {
+    void endTurn(Faction caller) { // To verify that the program is working correctly.
+        debug if (factions[turn] != caller) throw new Exception("Faction "~caller.name~" tried to end their turn, but it is not their turn.");
+        endTurn();
+    }
+
+    @safe void endTurn() {
         if (this.phase == GamePhase.Preparation) this.turn = 0; //Change this later so that the faction with the first turn is determined by the map file.
         else turn++;
         if (this.turn >= this.factions.length-1) turn = 0;
@@ -185,12 +190,6 @@ class Map {
         foreach(unit; this.allUnits) {
             if (unit !is null) unit.turnReset;
             else writeln("allUnits contains an empty member");
-        }
-    }
-
-    void turnReset(string faction) { // Delete this later
-        foreach(unit; this.factionsByName[faction].units) {
-            unit.turnReset;
         }
     }
     

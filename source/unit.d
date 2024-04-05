@@ -27,6 +27,8 @@ class Unit {
     public uint MHP;
     public uint Str;
     public uint Def;
+    public uint Dex;
+
     public uint Exp;
     
     public Item[] inventory;
@@ -35,7 +37,7 @@ class Unit {
     public int MvRemaining;
     alias moveRemaining = MvRemaining;
     public bool hasActed;
-    public bool finishedTurn;
+    public bool finishedTurn;       //May be removed if deemed unnecessary
     public int HP;
 
     version (moreCaching) {
@@ -136,7 +138,7 @@ class Unit {
         updateReach();
     }
     
-    void setLocation(Tile destination, const bool runUpdateReach) {
+    void setLocation(Tile destination, const bool runUpdateReach) { //runUpdateReach may be removed due to map.fullyLoaded being used instead.
         destination.setOccupant(this);
         foreach (int x, row; this.map.getGrid) {
             foreach (int y, someTile; row) if (someTile == destination) {
@@ -148,7 +150,7 @@ class Unit {
         if (map.allTilesLoaded() && runUpdateReach) updateReach();
     }
     
-    void setLocation(int x, int y, const bool runUpdateReach = true) { //runUpdateReach should be removed due to map.fullyLoaded being used instead. However, removing it causes a segfault.
+    void setLocation(int x, int y, const bool runUpdateReach = true) {
         this.xlocation = x;
         this.ylocation = y;
         this.currentTile = this.map.getTile(x,y);
@@ -173,6 +175,19 @@ class Unit {
         } else return false;
     }
 
+    void equipWeapon (Item weapon) {
+        import std.algorithm.searching;
+        if (is(typeof(weapon) == Weapon)) {
+            if (currentWeapon !is null) {
+                if (!inventory.canFind(currentWeapon)) {
+                    inventory ~= currentWeapon;
+                }
+            }
+            
+            currentWeapon = cast(Weapon) weapon;
+        } else throw new Exception ("Tried to equip a non-weapon item.");
+    }
+
     bool attack (uint x, uint y) {
         Unit tileOccupant = map.getTile(x, y).occupant;
         assert(tileOccupant !is null, "Tile occupant is null");
@@ -183,6 +198,8 @@ class Unit {
         } else return false;
     }
     bool attack (Unit opponent) {
+        if (hasActed || opponent is null) return false; // Temporary solution to limit attacks per turn. Later there may be a different limitation that allows multiple attacks per turn under some circumstances.
+        
         uint weaponAtk = (currentWeapon is null) ? 0 : currentWeapon.Atk;
         opponent.receiveDamage((this.Str * (this.Str + weaponAtk))/(this.Str + opponent.Def));
 
@@ -411,6 +428,14 @@ struct UnitStats {
     uint MHP;
     uint Str;
     uint Def;
+    uint Dex;
+}
+
+struct UnitSkills {
+    import std.traits;
+    static foreach(member; __traits(allMembers, WeaponSubtype)) {
+        mixin("uint "~member~";");
+    }
 }
 
 struct AttackPotential {
