@@ -25,6 +25,7 @@ class Unit {
     public uint Mv;
     private bool isFlyer = false;
     public uint MHP;
+    public uint size = 40;   // The "hitbox" size for determining hit or miss.
     public uint Str;
     public uint Def;
     public uint Dex;
@@ -43,6 +44,19 @@ class Unit {
     version (moreCaching) {
         protected TileAccess*[] reachableTiles; //Cache of reachable members of `tileReach`
         protected TileAccess*[] attackableTiles;; //Cache of members of `tileReach` attackable this or next turn
+    }
+
+    version (signals) {
+        Signal!(Unit) onAttack;
+        Signal!(Unit) onHit;
+        Signal!(Unit) onMiss;
+        Signal!(Unit) onDeath;
+    }
+    else {
+        static void delegate(Unit self) onAttack;
+        static void delegate(Unit self) onHit;
+        static void delegate(Unit self) onMiss;
+        static void delegate(Unit self) onDeath;
     }
 
     this(string name, Map map, UnitStats stats, uint xlocation, uint ylocation) {
@@ -127,7 +141,12 @@ class Unit {
         if (this.map !is null) this.map.removeUnit(this);
         if (this.faction !is null) this.faction.removeUnit(this);
         if (this.currentTile !is null) this.currentTile.occupant = null;
-        destroy(this);
+        
+        version (signals) onDeath.emit;
+        else if (onDeath !is null) onDeath(this);
+        
+        debug destroy(this);
+        else GC.free(this);
     }
 
     void turnReset() {
@@ -161,9 +180,10 @@ class Unit {
         if (map.allTilesLoaded()) updateReach();
     }
 
-    Vector2i getLocation() {
+    @safe Vector2i getLocation() {
         return Vector2i(x:this.xlocation, y:this.ylocation);
     }
+    alias location = getLocation;
 
     bool move (int x, int y) {
         if (this.tileReach[x][y].reachable && map.getTile(x,y).occupant is null) {
@@ -199,9 +219,23 @@ class Unit {
     }
     bool attack (Unit opponent) {
         if (hasActed || opponent is null) return false; // Temporary solution to limit attacks per turn. Later there may be a different limitation that allows multiple attacks per turn under some circumstances.
+        import std.random;
+
+        AttackPotential potential = getAttackPotential(opponent, measureDistance(this, opponent)); //currentWeapon.getAttackPotential(this, opponent);
+        debug writeln("Hitchance for "~this.name~" attacking "~opponent.name~": ", potential.hitChance);
         
-        uint weaponAtk = (currentWeapon is null) ? 0 : currentWeapon.Atk;
-        opponent.receiveDamage((this.Str * (this.Str + weaponAtk))/(this.Str + opponent.Def));
+        version (signals) onAttack.emit;
+        else if (onAttack !is null) onAttack(this);
+ 
+        if (potential.hitChance >= uniform(0,250)) {
+            if (onHit !is null) onHit(this);
+            writeln(this.name~" landed attack on "~opponent.name~"!");
+            opponent.receiveDamage(potential.damage);
+        } 
+        else {
+            if (onMiss !is null) onMiss(this);
+            writeln(this.name~" missed while attacking "~opponent.name);
+        }
 
         this.hasActed = true;
         return true;
@@ -215,10 +249,14 @@ class Unit {
         else return false;
     }
 
-    AttackPotential getAttackPotential (Unit opponent, uint distance=2) {
-        uint weaponAtk = (currentWeapon is null) ? 0 : currentWeapon.Atk;
-        short damage = cast(short)((this.Str * (this.Str + weaponAtk))/(this.Str + opponent.Def));
-        return AttackPotential(damage:damage);
+    AttackPotential getAttackPotential (Unit opponent, uint distance=0) {
+        if (distance==0) distance = measureDistance(this, opponent);
+        if (currentWeapon is null) {
+            short damage = cast(short)((this.Str^^2)/(this.Str + opponent.Def));
+            if (measureDistance(this.getLocation, opponent.getLocation) <= 2) return AttackPotential(damage:damage, hitChance:250);
+            else return AttackPotential(0,0);
+        }
+        else return currentWeapon.getAttackPotential(this, opponent);
     }
 
     void receiveDamage(int damage) {
@@ -420,6 +458,10 @@ struct TileAccess
         attackableNow = false;
         attackableAfter = false;
     }
+
+    Tile opCast(T=Tile)() const {
+        return tile;
+    }
 }
 
 struct UnitStats {
@@ -433,32 +475,25 @@ struct UnitStats {
 
 struct UnitSkills {
     import std.traits;
-    static foreach(member; __traits(allMembers, WeaponSubtype)) {
+    static foreach(member; __traits(allMembers, WeaponType)) { //May later be replaced by `WeaponSubtype`
         mixin("uint "~member~";");
     }
 }
 
 struct AttackPotential {
     short damage;
+    ubyte hitChance;
 }
 
 template UnitArrayManagement(alias Unit[] unitsArray) {
     bool removeUnit(Unit unit) {
         import std.algorithm.searching;
-        writeln("Doing `removeUnit`");
+        debug writeln("Removing "~unit.name);
         Unit[] shiftedUnits = unitsArray.find(unit);
         ushort unitKey = cast(ushort)(unitsArray.length - shiftedUnits.length);
-        debug {
-            writeln("unitsArray: ");
-            foreach (listedUnit; unitsArray) writeln(listedUnit.name~", ");
-            writeln("shiftedUnits: ");
-            foreach (listedUnit; shiftedUnits) writeln(listedUnit.name~", ");
-        }
         if (shiftedUnits.length > 0) {
-            debug writeln("shiftedUnits.length > 0");
             unitsArray[$-shiftedUnits.length] = null;
             for (ushort i=0; i<shiftedUnits.length-1; i++) {
-                debug writeln("In loop. unitKey = ", unitKey, ", i = ", i);
                 unitsArray[unitKey+i] = unitsArray[unitKey+i+1];
             }
             unitsArray.length--;
@@ -475,6 +510,7 @@ unittest
     UnitStats stats;
     stats.Str = 24;
     stats.Def = 12;
+    stats.Dex = ushort.max;
     stats.MHP = 60;
     
     Unit ally = new Unit("Ally", map, stats);
@@ -483,7 +519,7 @@ unittest
     enemy.setLocation(3, 4);
     ally.attack(enemy);
 
-    assert(enemy.HP == 44);
+    assert(enemy.HP == 44, "Enemy HP after being attacked should be 44, but it is "~to!string(enemy.HP));
     writeln("Passed Unit attack unittest");
 }
 

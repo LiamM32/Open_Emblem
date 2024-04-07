@@ -1,5 +1,6 @@
 import std.json;
 import unit;
+import std.algorithm.searching:canFind;
 
 @safe class Item
 {
@@ -19,8 +20,6 @@ import unit;
     }
 }
 
-
-
 class Weapon : Item
 {
 	bool projectile;
@@ -28,19 +27,28 @@ class Weapon : Item
 	uint Atk;
 	uint mass;
 	uint RH;
+    uint crossSection; //The size of the cross-section that would hit the target. Will later become specific to the attack method.
 	WeaponType type;
+    WeaponSubtype subtype;
 
 	this(JSONValue data) {
+        import std.conv;
+        import std.string;
+        import std.traits;
 		this.name = data.object["name"].get!string;
 		this.volume = data.object["volume"].get!ushort;
 		this.Atk = data.object["atk"].get!int;
 		this.mass = data.object["mass"].get!int;
 		this.RH = data.object["RH"].get!int;
 		this.range = data.object["range"].get!ushort;
-
-		switch (data.object["type"].get!string) {
+        if ("cross section" in data.object) this.crossSection = data.object["cross section"].get!uint;
+        else this.crossSection = 2;
+        if ("subtype" in data.object) {
+            subtype = data.object["subtype"].get!string.to!WeaponSubtype;
+            type = subtypeToType[subtype];
+        } switch (data.object["type"].get!string) {
 			case "knife", "blade", "sword":
-				this.type = WeaponType.blade;
+				this.type = WeaponType.sword;
 				break;
 			case "spear", "lance", "pike":
 				this.type = WeaponType.spear;
@@ -55,7 +63,9 @@ class Weapon : Item
 				this.type = WeaponType.bow;
 				break;
 			default:
-				throw new Exception("Weapon from JSON has no type");
+				if ("type" in data.object) type = data.object["type"].get!string.to!WeaponType;
+                else if (name.toLower.canFind(EnumMembers!WeaponType)) type = name.toLower.to!WeaponType;
+                else throw new Exception("Weapon from JSON has no type");
 		}
 
         this.options ~= ItemOption("Equip", delegate(Unit unit) {unit.currentWeapon = this;});
@@ -69,23 +79,37 @@ class Weapon : Item
         delegate(Unit unit) {unit.currentWeapon = null; unit.inventory ~= this;}
         )];
     }
+
+    AttackPotential getAttackPotential (Unit attacker, Unit opponent, uint distance=0) {    // Temporary function for attacks
+        if (distance==0) distance = measureDistance(attacker, opponent);
+        short damage = cast(short) ((attacker.Str * (attacker.Str + this.Atk))/(attacker.Str + opponent.Def));
+        ubyte hitChance = cast(ubyte) (250 * (opponent.size + this.crossSection) * attacker.Dex / measureDistance(attacker.getLocation, opponent.getLocation));
+        return AttackPotential(damage:damage, hitChance:hitChance);
+    }
+
+    //ItemOption[] getAttacks(Unit user); // This will eventually return a list of moves that can be performed.
 }
 
 enum WeaponType : ubyte
 {
-	blade,
+	knife,
+    sword,
 	spear,
 	axe,
 	blunt,
-	bow
+	bow,
+    gun
 }
 
 enum WeaponSubtype : ubyte
 {
 	dagger,
-	sword,
+	backsword,
+    longsword,
 	rapier,
-	axe,
+    hatchet,
+	broadaxe,
+    poleaxe,
 	hammer,
 	mace,
 	morningStar,
@@ -93,6 +117,21 @@ enum WeaponSubtype : ubyte
 	spear,
 	bow
 }
+
+const WeaponType[WeaponSubtype] subtypeToType = [
+    WeaponSubtype.dagger: WeaponType.sword,
+    WeaponSubtype.backsword: WeaponType.sword,
+    WeaponSubtype.longsword: WeaponType.sword,
+    WeaponSubtype.hatchet: WeaponType.axe,
+    WeaponSubtype.broadaxe: WeaponType.axe,
+    WeaponSubtype.poleaxe: WeaponType.axe,
+    WeaponSubtype.hammer: WeaponType.blunt,
+    WeaponSubtype.mace: WeaponType.blunt,
+    WeaponSubtype.morningStar: WeaponType.blunt,
+    WeaponSubtype.lance: WeaponType.spear,
+    WeaponSubtype.spear: WeaponType.spear,
+    WeaponSubtype.bow: WeaponType.bow,
+    ];
 
 import common;
 import map;
