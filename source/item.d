@@ -71,9 +71,9 @@ class Weapon : Item
         this.options ~= ItemOption("Equip", delegate(Unit unit) {unit.currentWeapon = this;});
 	}
 
-    @trusted override ItemOption[] getOptions(Unit user) {
+    @trusted override ItemOption[] getOptions(Unit user) { // `@trusted` may be removed if a replacement for `canFind` is found.
         import std.algorithm.searching;
-        if (user.currentWeapon == this) return [ItemOption("Equip", delegate(Unit unit) {unit.currentWeapon = this;})];
+        if (user.currentWeapon is this) return [ItemOption("Equip", delegate(Unit unit) {unit.currentWeapon = this;})];
         else return [ItemOption("Remove", canFind(user.inventory, this) ?
         delegate (Unit unit) {unit.currentWeapon = null;} :
         delegate(Unit unit) {unit.currentWeapon = null; unit.inventory ~= this;}
@@ -81,6 +81,8 @@ class Weapon : Item
     }
 
     AttackPotential getAttackPotential (Unit attacker, Unit opponent, uint distance=0) {    // Temporary function for attacks
+        debug if (attacker is opponent) throw new Exception("`attacker` and `opponent` are the same object");
+        
         if (distance==0) distance = measureDistance(attacker, opponent);
         short damage = cast(short) ((attacker.Str * (attacker.Str + this.Atk))/(attacker.Str + opponent.Def));
         ubyte hitChance = cast(ubyte) (250 * (opponent.size + this.crossSection) * attacker.Dex / measureDistance(attacker.getLocation, opponent.getLocation));

@@ -88,6 +88,7 @@ class Unit {
         this.isFlyer = stats.isFlyer;
         this.Str = stats.Str;
         this.Def = stats.Def;
+        this.Dex = stats.Dex;
     }
 
     this(Map map, JSONValue unitData, int xlocation, int ylocation) {
@@ -125,6 +126,7 @@ class Unit {
         this.HP = this.MHP;
         this.Str = unitData.object["Str"].get!uint;
         this.Def = unitData.object["Def"].get!uint;
+        this.Dex = unitData.object["Dex"].get!uint;
 
         if ("Weapon" in unitData.object) {
             Weapon weapon = new Weapon(unitData.object["Weapon"]);
@@ -485,6 +487,8 @@ struct AttackPotential {
     ubyte hitChance;
 }
 
+const ushort maxHitChance = 250;
+
 template UnitArrayManagement(alias Unit[] unitsArray) {
     bool removeUnit(Unit unit) {
         import std.algorithm.searching;
@@ -534,6 +538,7 @@ unittest
         unitJSON["Mv"] = 7;
         unitJSON["Str"] = 24;
         unitJSON["Def"] = 18;
+        unitJSON["Dex"] = 17;
         unitJSON["MHP"] = 120;
         unitA = new Unit(unitJSON);
         UnitStats stats = unitA.getStats();

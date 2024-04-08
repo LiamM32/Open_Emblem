@@ -4,7 +4,7 @@ import std.stdio;
 import std.json;
 debug import std.conv;
 
-import tile;
+public import tile;
 import unit;
 import common;
 import faction;
