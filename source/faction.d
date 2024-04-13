@@ -45,7 +45,7 @@ class Faction
             if (name in factionsByName && !canFind(allies, factionsByName[name])) allies ~= factionsByName[name];
         }
         foreach (name; enemyNames) {
-            writeln(name~" is an enemy of "~this.name);
+            debug writeln(name~" is an enemy of "~this.name);
             if (name in factionsByName && !canFind(enemies, factionsByName[name])) enemies ~= factionsByName[name];
         }
     }
@@ -57,7 +57,7 @@ class Faction
         
         foreach (unit; this.units) {
             if (unit is null) map.endTurn();
-            else writeln(unit.name~" is being reset.");
+            else debug writeln(unit.name~" is being reset.");
             unit.turnReset();
         }
     }

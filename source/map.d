@@ -2,7 +2,7 @@ module map;
 
 import std.stdio;
 import std.json;
-debug import std.conv;
+import std.conv;
 
 public import tile;
 import unit;
@@ -123,7 +123,7 @@ class Map {
         foreach (faction; this.factions) faction.setAlliesEnemies(factionsByName);
     }
 
-    ~this() {
+    version (cascadeDestroy) ~this() {
         foreach (unit; this.allUnits) {
             destroy(unit);
         }

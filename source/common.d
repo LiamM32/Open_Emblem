@@ -103,7 +103,7 @@ struct Direction //One of 8 directions stored in 3 bits
     }
 
     T opCast(T)() const if (isNumeric!T) {
-        return this.value;
+        return cast(T)this.value;
     }
 
     T to(T)() const if(isNumeric!T) {

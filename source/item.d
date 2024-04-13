@@ -1,23 +1,31 @@
 import std.json;
 import unit;
-import std.algorithm.searching:canFind;
+import std.algorithm;
+
+debug import std.stdio;
 
 @safe class Item
 {
 	string name;
 	ushort volume;
+    uint mass;
     
     protected ItemOption[] options;
 
     @safe ItemOption[] getOptions(Unit unit) {
+        ItemOption[] options;
+        foreach (option; options) {
+            if (option.requirement) options ~= option;
+        }
         return options;
     }
+}
 
-    @safe struct ItemOption
-    {
-        string name;
-        @safe void delegate(Unit user) action;
-    }
+@safe struct ItemOption
+{
+    string name;
+    @safe bool delegate(Unit user) requirement;
+    @safe void delegate(Unit user) action;
 }
 
 class Weapon : Item
@@ -25,7 +33,6 @@ class Weapon : Item
 	bool projectile;
 	ushort range = 2;
 	uint Atk;
-	uint mass;
 	uint RH;
     uint crossSection; //The size of the cross-section that would hit the target. Will later become specific to the attack method.
 	WeaponType type;
@@ -68,28 +75,54 @@ class Weapon : Item
                 else throw new Exception("Weapon from JSON has no type");
 		}
 
-        this.options ~= ItemOption("Equip", delegate(Unit unit) {unit.currentWeapon = this;});
+        this.options ~= optionEquip;
+        this.options ~= optionRemove;
 	}
 
-    @trusted override ItemOption[] getOptions(Unit user) { // `@trusted` may be removed if a replacement for `canFind` is found.
+    /*@trusted override ItemOption[] getOptions(Unit user) { // `@trusted` may be removed if a replacement for `canFind` is found.
         import std.algorithm.searching;
         if (user.currentWeapon is this) return [ItemOption("Equip", delegate(Unit unit) {unit.currentWeapon = this;})];
-        else return [ItemOption("Remove", canFind(user.inventory, this) ?
-        delegate (Unit unit) {unit.currentWeapon = null;} :
-        delegate(Unit unit) {unit.currentWeapon = null; unit.inventory ~= this;}
+        else return [ItemOption("Remove", delegate (Unit unit){return unit.currentWeapon==this;},
+            canFind(user.inventory, this) ?
+            delegate (Unit unit) {unit.currentWeapon = null;} :
+            delegate(Unit unit) {unit.currentWeapon = null; unit.inventory ~= this;}
         )];
-    }
+    }*/
 
     AttackPotential getAttackPotential (Unit attacker, Unit opponent, uint distance=0) {    // Temporary function for attacks
         debug if (attacker is opponent) throw new Exception("`attacker` and `opponent` are the same object");
         
         if (distance==0) distance = measureDistance(attacker, opponent);
         short damage = cast(short) ((attacker.Str * (attacker.Str + this.Atk))/(attacker.Str + opponent.Def));
-        ubyte hitChance = cast(ubyte) (250 * (opponent.size + this.crossSection) * attacker.Dex / measureDistance(attacker.getLocation, opponent.getLocation));
-        return AttackPotential(damage:damage, hitChance:hitChance);
+        uint hitChance = ((opponent.size + this.crossSection) * attacker.Dex / measureDistance(attacker.location, opponent.location));
+        debug writeln("250 * (", opponent.size, " + ", this.crossSection, ")", " * ", attacker.Dex, " / ", measureDistance(attacker.location, opponent.location));
+        debug writeln("Distance between "~attacker.name~" and "~opponent.name~" is ", measureDistance(attacker.location, opponent.location));
+        debug writeln("Hitchance is ", hitChance);
+        return AttackPotential(damage:damage, hitChance:cast(ushort)min(hitChance, maxHitChance));
     }
 
     //ItemOption[] getAttacks(Unit user); // This will eventually return a list of moves that can be performed.
+
+    ItemOption optionEquip() {
+        return ItemOption(name: "Equip",
+            requirement: delegate(unit) {return (unit.Str > this.mass);},
+            action: delegate(unit) @trusted {unit.equipWeapon(this);}
+        );
+    }
+
+    ItemOption optionRemove() {
+        return ItemOption(name: "Equip",
+            requirement: delegate(Unit unit) @safe {return (unit.currentWeapon is this);},
+            action: delegate(unit) @trusted {unit.equipWeapon(null);}
+        );
+    }
+}
+
+struct AttackDelivered
+{
+    float energy;
+    float time;
+    float RH;
 }
 
 enum WeaponType : ubyte
@@ -139,6 +172,7 @@ import common;
 import map;
 import tile;
 
+// This should later be moved to 'map' module, and fixed.
 Vector2i[] projectileScan(Vector2i origin, Direction direction, int range, Map map){
     Vector2i[] attackable;
     Vector2i offset = offsetByDirection(direction);

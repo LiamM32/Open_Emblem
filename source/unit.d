@@ -3,6 +3,7 @@ module unit;
 import std.stdio;
 import std.conv;
 import std.json;
+import std.algorithm.comparison;
 
 import common;
 import map;
@@ -22,10 +23,11 @@ class Unit {
     //static ubyte lookahead = 1;
     
     public string name;
+    UnitStats stats;
     public uint Mv;
     private bool isFlyer = false;
     public uint MHP;
-    public uint size = 40;   // The "hitbox" size for determining hit or miss.
+    public uint size = 128;   // The "hitbox" size for determining hit or miss.
     public uint Str;
     public uint Def;
     public uint Dex;
@@ -140,6 +142,8 @@ class Unit {
     }
 
     void die() {
+        import core.memory;
+        
         if (this.map !is null) this.map.removeUnit(this);
         if (this.faction !is null) this.faction.removeUnit(this);
         if (this.currentTile !is null) this.currentTile.occupant = null;
@@ -147,8 +151,8 @@ class Unit {
         version (signals) onDeath.emit;
         else if (onDeath !is null) onDeath(this);
         
-        debug destroy(this);
-        else GC.free(this);
+        //debug destroy(this);
+        //else GC.free(&this);
     }
 
     void turnReset() {
@@ -197,27 +201,31 @@ class Unit {
         } else return false;
     }
 
-    void equipWeapon (Item weapon) {
+    bool equipWeapon (Item weapon) {
         import std.algorithm.searching;
-        if (is(typeof(weapon) == Weapon)) {
+        if (is(typeof(weapon) == Weapon) || weapon is null) {
             if (currentWeapon !is null) {
                 if (!inventory.canFind(currentWeapon)) {
                     inventory ~= currentWeapon;
                 }
             }
-            
-            currentWeapon = cast(Weapon) weapon;
+            if (this.Str >= weapon.mass*2) {
+                currentWeapon = cast(Weapon) weapon;
+                return true;
+            } else return false;
         } else throw new Exception ("Tried to equip a non-weapon item.");
     }
 
     bool attack (uint x, uint y) {
         Unit tileOccupant = map.getTile(x, y).occupant;
-        assert(tileOccupant !is null, "Tile occupant is null");
         if ((tileOccupant !is null) &&
             (measureDistance(this.getLocation, Vector2i(x,y)) <= attackRange) &&
             map.checkObstruction(this.getLocation, Vector2i(x,y))
             ) { return attack(tileOccupant);
-        } else return false;
+        } else {
+            writeln("Warning: "~this.name~" tried to attack an empty tile.");
+            return false;
+        }
     }
     bool attack (Unit opponent) {
         if (hasActed || opponent is null) return false; // Temporary solution to limit attacks per turn. Later there may be a different limitation that allows multiple attacks per turn under some circumstances.
@@ -229,7 +237,11 @@ class Unit {
         version (signals) onAttack.emit;
         else if (onAttack !is null) onAttack(this);
  
-        if (potential.hitChance >= uniform(0,250)) {
+        ubyte dieRoll = cast(ubyte) uniform(0, maxHitChance);
+
+        debug writeln("Rolled a ", dieRoll, ", compared to a maximum of ", potential.hitChance);
+        
+        if (potential.hitChance >= dieRoll) {
             if (onHit !is null) onHit(this);
             writeln(this.name~" landed attack on "~opponent.name~"!");
             opponent.receiveDamage(potential.damage);
@@ -251,6 +263,7 @@ class Unit {
         else return false;
     }
 
+    // Gets the potential attack damage and chance of hit if attacking a particular enemy from a given distance (under regular conditions)
     AttackPotential getAttackPotential (Unit opponent, uint distance=0) {
         if (distance==0) distance = measureDistance(this, opponent);
         if (currentWeapon is null) {
@@ -259,6 +272,15 @@ class Unit {
             else return AttackPotential(0,0);
         }
         else return currentWeapon.getAttackPotential(this, opponent);
+    }
+
+    // Gets the attack damage and chance of hit at various distances.
+    AttackSpectrum getAttackSpectrum (Unit opponent, uint maxDistance=16) {
+        AttackSpectrum result;
+        foreach (int distance; 0..min(16, maxDistance)) {
+            result[distance] = getAttackPotential(opponent, distance);
+        }
+        return result;
     }
 
     void receiveDamage(int damage) {
@@ -469,10 +491,11 @@ struct TileAccess
 struct UnitStats {
     uint Mv;
     bool isFlyer = false;
-    uint MHP;
-    uint Str;
-    uint Def;
-    uint Dex;
+    uint size = 128;     // The "hitbox" size for determining hit or miss
+    uint MHP;           // The HP value when fully healed
+    uint Str;           // Increases attack damage
+    uint Def;           // Lowers damage from enemy attacks
+    uint Dex;           // Increases accuracy of weapons
 }
 
 struct UnitSkills {
@@ -484,10 +507,16 @@ struct UnitSkills {
 
 struct AttackPotential {
     short damage;
-    ubyte hitChance;
+    ushort hitChance;
+    float hitTime;
 }
 
-const ushort maxHitChance = 250;
+struct AttackSpectrum {
+    AttackPotential[16] spectrum;
+    alias this = spectrum;
+}
+
+const ushort maxHitChance = 1000;
 
 template UnitArrayManagement(alias Unit[] unitsArray) {
     bool removeUnit(Unit unit) {
