@@ -1,15 +1,15 @@
-module unit;
+module oe.unit;
 
 import std.stdio;
 import std.conv;
 import std.json;
 import std.algorithm.comparison;
 
-import common;
-import map;
-import tile;
-import item;
-import faction;
+import oe.common;
+import oe.map;
+import oe.tile;
+import oe.item;
+import oe.faction;
 
 class Unit {
     public Map map;
@@ -24,13 +24,14 @@ class Unit {
     
     public string name;
     UnitStats stats;
-    public uint Mv;
+    alias this = stats;
+    /*public uint Mv;
     private bool isFlyer = false;
     public uint MHP;
     public uint size = 128;   // The "hitbox" size for determining hit or miss.
     public uint Str;
     public uint Def;
-    public uint Dex;
+    public uint Dex;*/
 
     public uint Exp;
     
@@ -319,7 +320,7 @@ class Unit {
     }
     
     private bool updateReach(uint distancePassed, int x, int y, Direction wentIn, ubyte lookahead=1) {
-        import tile;
+        import oe.tile;
         if (!map.getTile(x, y).allowUnit(this.isFlyer) && distancePassed > 0) return false;
         if (tileReach[x][y].distance <= distancePassed) return true;
         
@@ -395,7 +396,7 @@ class Unit {
         return this.tileReach[x][y];
     }
 
-    version (noCache) T[] getReachable(T)() {
+    version (lessCaching) T[] getReachable(T)() {
         T[] reachableTiles;
         foreach (int x, row; this.tileReach) {
             foreach (int y, tileAccess; row) {
@@ -434,14 +435,7 @@ class Unit {
     }
 
     UnitStats getStats() {
-        UnitStats stats;
-        stats.Mv = this.Mv;
-        stats.isFlyer = this.isFlyer;
-        stats.MHP = this.MHP;
-        stats.Str = this.Str;
-        stats.Def = this.Def;
-
-        return stats;
+        return this.stats;
     }
 
     // Gets a path to destination as either `Tile[]` or `TileAccess[]`

@@ -1,7 +1,7 @@
-module tile;
+module oe.tile;
 
-import unit;
-import common;
+import oe.unit;
+import oe.common;
 
 class Tile
 {

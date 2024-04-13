@@ -1,10 +1,12 @@
+module oe.faction;
+
 debug import std.stdio;
 import std.signals;
 import std.algorithm.searching;
 
-import map;
-import unit;
-import common;
+import oe.map;
+import oe.unit;
+import oe.common;
 
 class Faction
 {
@@ -69,7 +71,7 @@ class Faction
 
 class NonPlayerFaction : Faction
 {
-    import tile;
+    import oe.tile;
     import std.algorithm.sorting;
     import std.array;
 

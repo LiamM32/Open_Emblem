@@ -1,5 +1,7 @@
+module oe.item;
+
 import std.json;
-import unit;
+import oe.unit;
 import std.algorithm;
 
 debug import std.stdio;
@@ -168,9 +170,9 @@ const WeaponType[WeaponSubtype] subtypeToType = [
     WeaponSubtype.bow: WeaponType.bow,
     ];
 
-import common;
-import map;
-import tile;
+import oe.common;
+import oe.map;
+import oe.tile;
 
 // This should later be moved to 'map' module, and fixed.
 Vector2i[] projectileScan(Vector2i origin, Direction direction, int range, Map map){
@@ -237,8 +239,8 @@ Vector2i[] projectileScan(Vector2i origin, Direction direction, int range, Map m
 	import std.conv;
     import std.algorithm.searching;
     import std.traits;
-    import unit;
-    //import tile;
+    import oe.unit;
+    //import oe.tile;
     debug writeln("Starting projectileScan unittest");
     const Vector2i origin = Vector2i(12, 12);
     const int range = 10;

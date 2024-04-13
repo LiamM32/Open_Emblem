@@ -1,3 +1,5 @@
+module oe.common;
+
 version(unittest) import std.stdio;
 @safe @nogc
 
@@ -167,8 +169,8 @@ struct Direction //One of 8 directions stored in 3 bits
     return xdiff + ydiff + max(xdiff, ydiff);
 }
 
-import tile:Tile;
-import unit:Unit;
+import oe.tile:Tile;
+import oe.unit:Unit;
 uint measureDistance(T)(T objA, T objB) if(is(T==Tile)||is(T==Unit)) {
     Vector2i a = objA.location;
     Vector2i b = objB.location;

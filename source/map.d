@@ -1,13 +1,13 @@
-module map;
+module oe.map;
 
 import std.stdio;
 import std.json;
 import std.conv;
 
-public import tile;
-import unit;
-import common;
-import faction;
+public import oe.tile;
+import oe.unit;
+import oe.common;
+import oe.faction;
 
 class Map {
     public string name;
@@ -138,7 +138,7 @@ class Map {
         import std.conv;
         import std.uni:toLower;
         import std.algorithm.searching;
-        import item;
+        import oe.item;
         foreach (int x, row; this.grid) foreach (int y, tile; row) {
             assert(tile.x == x, "Tile at position "~to!string(x)~", "~to!string(y)~" does not match it's internal reading of "~tile.x.to!string~", "~tile.y.to!string~".");
             if (tile.occupant !is null) {
