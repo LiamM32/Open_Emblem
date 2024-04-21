@@ -3,6 +3,7 @@ module oe.map;
 import std.stdio;
 import std.json;
 import std.conv;
+import std.array;
 
 public import oe.tile;
 import oe.unit;
@@ -16,7 +17,8 @@ class Map {
     protected ushort gridWidth;
     protected ushort gridLength;
     public bool fullyLoaded = false;
-    protected GamePhase phase = GamePhase.Loading;
+    protected GamePhase gamePhase = GamePhase.Loading;
+    deprecated alias phase = gamePhase;
     public int turn;
 
     public Faction[] factions;
@@ -208,7 +210,9 @@ class Map {
         else throw new Exception("Tile "~to!string(x)~", "~to!string(y)~" does not exist.");
     }
 
-    Tile[][] getGrid() {
+    Tile[] allTiles() @safe => grid.join;
+
+    Tile[][] getGrid() @safe {
         Tile[][] tileGrid;
         tileGrid.length = this.grid.length;
         foreach(int x, row; this.grid) {
@@ -247,6 +251,10 @@ class Map {
         if (name in factionsByName) return factionsByName[name];
         else if (name.toLower in factionsByName) return factionsByName[name.toLower];
         else throw new Exception("Faction "~name~" not found.");
+    }
+
+    GamePhase getPhase() {
+        return gamePhase;
     }
 
     bool checkObstruction (Vector2i a, Vector2i b) { // Returns true if the tightest path between two points is unobstructed.
