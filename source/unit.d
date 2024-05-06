@@ -164,19 +164,18 @@ class Unit {
         updateReach();
     }
     
-    void setLocation(Tile destination, const bool runUpdateReach) { //runUpdateReach may be removed due to map.fullyLoaded being used instead.
-        destination.setOccupant(this);
-        foreach (int x, row; this.map.getGrid) {
-            foreach (int y, someTile; row) if (someTile == destination) {
-                this.xlocation = x;
-                this.ylocation = y;
-                break;
-            }
-        }
+    void setLocation(Tile destination, const bool runUpdateReach = true) { //runUpdateReach may be removed due to map.fullyLoaded being used instead.
+        destination.occupant = this;
+        currentTile = destination;
+        xlocation = destination.x;
+        ylocation = destination.y;
+    
         if (map.allTilesLoaded() && runUpdateReach) updateReach();
+        assert(currentTile == destination);
+        assert(currentTile.occupant is this);
     }
     
-    void setLocation(int x, int y, const bool runUpdateReach = true) {
+    void setLocation(uint x, uint y, const bool runUpdateReach = true) {
         this.xlocation = x;
         this.ylocation = y;
         this.currentTile = this.map.getTile(x,y);
@@ -185,6 +184,7 @@ class Unit {
         this.map.getTile(x, y).setOccupant(this);
         
         if (map.allTilesLoaded()) updateReach();
+        assert(currentTile.occupant is this);
     }
 
     @safe Vector2i getLocation() {
@@ -513,19 +513,10 @@ struct AttackSpectrum {
 const ushort maxHitChance = 1000;
 
 template UnitArrayManagement(alias Unit[] unitsArray) {
-    bool removeUnit(Unit unit) {
-        import std.algorithm.searching;
-        debug writeln("Removing "~unit.name);
-        Unit[] shiftedUnits = unitsArray.find(unit);
-        ushort unitKey = cast(ushort)(unitsArray.length - shiftedUnits.length);
-        if (shiftedUnits.length > 0) {
-            unitsArray[$-shiftedUnits.length] = null;
-            for (ushort i=0; i<shiftedUnits.length-1; i++) {
-                unitsArray[unitKey+i] = unitsArray[unitKey+i+1];
-            }
-            unitsArray.length--;
-            return true;
-        } else return false;
+    void removeUnit(Unit toRemove) {
+        import std.algorithm, std.array;
+        debug writeln("Removing "~toRemove.name);
+        unitsArray = unitsArray.filter!(unit => unit !is toRemove)().array;
     }
 }
 
