@@ -4,6 +4,8 @@ import std.stdio;
 import std.json;
 import std.conv;
 import std.array;
+import std.algorithm;
+import std.algorithm.searching;
 
 public import oe.tile;
 import oe.unit;
@@ -19,7 +21,7 @@ class Map {
     public bool fullyLoaded = false;
     protected GamePhase gamePhase = GamePhase.Loading;
     deprecated alias phase = gamePhase;
-    public int turn;
+    public uint turn;
 
     public Faction[] factions;
     public Faction[string] factionsByName;
@@ -83,7 +85,6 @@ class Map {
 
     protected bool loadFactionsFromJSON (JSONValue mapData) {
         import std.uni: toLower;
-        import std.algorithm.searching;
         
         this.factions ~= new Faction(name:"Player", isPlayer:true, map:this);
         this.factionsByName["player"] = this.factions[$-1];
@@ -139,7 +140,6 @@ class Map {
     debug bool verifyEverything(const bool includeReach=true) {
         import std.conv;
         import std.uni:toLower;
-        import std.algorithm.searching;
         import oe.item;
         foreach (int x, row; this.grid) foreach (int y, tile; row) {
             assert(tile.x == x, "Tile at position "~to!string(x)~", "~to!string(y)~" does not match it's internal reading of "~tile.x.to!string~", "~tile.y.to!string~".");
@@ -193,6 +193,22 @@ class Map {
             if (unit !is null) unit.turnReset;
             else writeln("allUnits contains an empty member");
         }
+    }
+
+    void addUnit(Unit unit, Faction faction = null) {
+        if (!canFind(allUnits, unit)) allUnits ~= unit;
+
+        assert(unit.faction || faction);
+        if (faction) unit.faction = faction;
+        if (!canFind(unit.faction.units, unit)) unit.faction.units ~= unit;
+    }
+
+    Faction activeFaction() {
+        assert(turn <= factions.length);
+
+        if (gamePhase == GamePhase.PlayerTurn || gamePhase == GamePhase.NonPlayerTurn) {
+            return factions[turn];
+        } else return null;
     }
     
     Tile getTile(Vector2i location, const bool allowNull=false) {
@@ -258,7 +274,6 @@ class Map {
     }
 
     bool checkObstruction (Vector2i a, Vector2i b) { // Returns true if the tightest path between two points is unobstructed.
-        import std.algorithm;
         import std.math;
         debug import std.conv;
         debug import std.stdio;
@@ -334,7 +349,6 @@ enum GamePhase : ubyte {
 
 unittest
 {
-    import std.algorithm.searching;
     debug writeln("Starting Map Unit deletion unittest.");
 
     Map map = new Map(cast(ushort)16, cast(ushort)16);
@@ -353,7 +367,6 @@ unittest
 
 unittest
 {
-    import std.algorithm.searching;
     import std.traits;
     debug writeln("Starting Map.checkObstruction unittest");
     const Vector2i origin = Vector2i(12, 12);

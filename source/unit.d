@@ -166,9 +166,13 @@ class Unit {
     
     void setLocation(Tile destination, const bool runUpdateReach = true) { //runUpdateReach may be removed due to map.fullyLoaded being used instead.
         destination.occupant = this;
+        if (currentTile) currentTile.occupant = null;
         currentTile = destination;
-        xlocation = destination.x;
-        ylocation = destination.y;
+        if (destination) {
+            xlocation = destination.x;
+            ylocation = destination.y;
+        }
+        else if (runUpdateReach) throw new Exception("Cannot use a null destination when `runUpdateReach` is set to true.");
     
         if (map.allTilesLoaded() && runUpdateReach) updateReach();
         assert(currentTile == destination);
@@ -396,7 +400,7 @@ class Unit {
         return this.tileReach[x][y];
     }
 
-    version (lessCaching) T[] getReachable(T)() {
+    version (lessCaching) T[] getReachable(T = Tile)() {
         T[] reachableTiles;
         foreach (int x, row; this.tileReach) {
             foreach (int y, tileAccess; row) {
@@ -409,7 +413,7 @@ class Unit {
     }
 
     version (moreCaching) {
-        T[] getReachable(T)() {
+        T[] getReachable(T = Tile)() {
             T[] tiles;
             foreach (tileAccess; this.reachableTiles) {
                 static if (is(T==TileAccess)) tiles ~= *tileAccess;
@@ -419,7 +423,7 @@ class Unit {
             return tiles;
         }
         
-        T[] getAttackable(T)() {
+        T[] getAttackable(T = Tile)() {
             T[] tiles;
             foreach (tileAccess; this.attackableTiles) {
                 static if (is(T==TileAccess)) tiles ~= *tileAccess;
